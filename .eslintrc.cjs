@@ -21,6 +21,9 @@ module.exports = {
       env: {
         "jest/globals": true,
       },
+      rules: {
+        "func-style": "off",
+      },
     },
     {
       files: ["*.cjs"],
