@@ -29,7 +29,7 @@ export type Effect<K extends EffectKind, A> = Readonly<{
 }>;
 
 /**
- * Make an effect.
+ * Make an effect object.
  * @param kind The kind of the effect.
  * @param value An associated value of the effect.
  * @returns An effect object.
