@@ -41,7 +41,10 @@ const putState = (value: number) =>
 
 // 3. Write effect handlers
 
-function runState<T>(comp: Effectful<"state/get" | "state/put", T>, state: { current: number }): T {
+function runState<T>(
+  comp: Effectful<"state/get" | "state/put", T>,
+  state: { current: number }
+): T {
   return run(comp, x => x, {
     "state/get": (eff, resume) => {
       return resume(eff.value.k(state.current));
@@ -55,7 +58,9 @@ function runState<T>(comp: Effectful<"state/get" | "state/put", T>, state: { cur
 
 // 4. Write computations using generators
 
-function* getAndMultiplyState(multiplier: number): Effectful<"state/get", number> {
+function* getAndMultiplyState(
+  multiplier: number
+): Effectful<"state/get", number> {
   // use `yield*` to perform an effect
   const value = yield* getState;
   return multiplier * value;
@@ -85,3 +90,8 @@ console.log(state);
 ## Author
 
 Susisu ([GitHub](https://github.com/susisu), [Twitter](https://twitter.com/susisu2413))
+
+## Previous works
+
+- [briancavalier/fx-ts](https://github.com/briancavalier/fx-ts/)
+- [susisu/effects](https://github.com/susisu/effects)
