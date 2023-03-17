@@ -91,7 +91,7 @@ console.log(state);
 
 Susisu ([GitHub](https://github.com/susisu), [Twitter](https://twitter.com/susisu2413))
 
-## Previous works
+## Prior works
 
 - [briancavalier/fx-ts](https://github.com/briancavalier/fx-ts/)
 - [susisu/effects](https://github.com/susisu/effects)
