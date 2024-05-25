@@ -87,7 +87,7 @@ export function run<Row extends EffectId, A, R>(
   handlers: Handlers<Row, R>,
 ): R {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resume = (value?: any): R => {
+  const loop = (value?: any): R => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = comp.next(value);
     if (res.done) {
@@ -95,8 +95,15 @@ export function run<Row extends EffectId, A, R>(
     } else {
       const eff = res.value;
       const handler = handlers[eff.id];
-      return handler(eff, resume);
+      let resumed = false;
+      return handler(eff, (value) => {
+        if (resumed) {
+          throw new Error("resume cannot be called more than once");
+        }
+        resumed = true;
+        return loop(value);
+      });
     }
   };
-  return resume();
+  return loop();
 }

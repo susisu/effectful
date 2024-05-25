@@ -37,4 +37,15 @@ describe("run", () => {
     });
     expect(res).toBe(666);
   });
+
+  it("throws if resume is called more than once", () => {
+    expect(() => {
+      run(main(), (x) => x, {
+        "index.spec/identity": (eff, resume) => {
+          resume(eff.data);
+          return resume(eff.data);
+        },
+      });
+    }).toThrow("resume cannot be called more than once");
+  });
 });
