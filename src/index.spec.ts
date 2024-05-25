@@ -32,21 +32,21 @@ describe("run", () => {
   };
 
   it("runs an effectful computation", () => {
-    const res = run(main(), x => x, {
+    const res = run(main(), (x) => x, {
       "index.spec/identity": (eff, resume) => resume(eff.value),
     });
     expect(res).toBe(42);
   });
 
   it("allows the return handler to modify the return value of the computation", () => {
-    const res = run(main(), x => x.toString(), {
+    const res = run(main(), (x) => x.toString(), {
       "index.spec/identity": (eff, resume) => resume(eff.value),
     });
     expect(res).toBe("42");
   });
 
   it("allows the effect handlers to abort the computation", () => {
-    const res = run(main(), x => x.toString(), {
+    const res = run(main(), (x) => x.toString(), {
       "index.spec/identity": () => "xxx",
     });
     expect(res).toBe("xxx");

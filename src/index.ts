@@ -36,7 +36,7 @@ export type Effect<K extends EffectKind, A> = Readonly<{
  */
 export function makeEffect<K extends EffectKind, A>(
   kind: Single<K>,
-  value: EffectValue<K, A>
+  value: EffectValue<K, A>,
 ): Effect<K, A> {
   const eff: Effect<K, A> = {
     kind,
@@ -84,7 +84,7 @@ export type Handlers<K extends EffectKind, R> = Readonly<{ [K0 in K]: Handler<K0
 export function run<K extends EffectKind, A, R>(
   comp: Effectful<K, A>,
   ret: (value: A) => R,
-  handlers: Handlers<K, R>
+  handlers: Handlers<K, R>,
 ): R {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resume = (value?: any): R => {
