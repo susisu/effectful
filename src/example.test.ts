@@ -1,25 +1,12 @@
-# @susisu/effectful
+// Tests the example code on README
 
-[![CI](https://github.com/susisu/effectful/actions/workflows/ci.yml/badge.svg)](https://github.com/susisu/effectful/actions/workflows/ci.yml)
-
-``` shell
-# npm
-npm i @susisu/effectful
-# yarn
-yarn add @susisu/effectful
-# pnpm
-pnpm add @susisu/effectful
-```
-
-## Example
-
-``` ts
-import type { Eff } from "@susisu/effectful";
-import { perform, run } from "@susisu/effectful";
+import { describe, it, expect } from "vitest";
+import type { Eff } from ".";
+import { perform, run } from ".";
 
 // 1. Augment `EffectDef<A>` to define effects
 
-declare module "@susisu/effectful" {
+declare module "." {
   interface EffectDef<A> {
     "state/get": {
       // constrains A = number and converts number to A
@@ -95,23 +82,11 @@ function* main(): Eff<"state/get" | "state/put", string> {
 
 // 5. Run the computation
 
-const state = { current: 2 };
-const result = runState(main(), state);
-console.log(result);
-// => "current state is 6"
-console.log(state);
-// => { current: 6 }
-```
-
-## License
-
-[MIT License](http://opensource.org/licenses/mit-license.php)
-
-## Author
-
-Susisu ([GitHub](https://github.com/susisu), [Twitter](https://twitter.com/susisu2413))
-
-## Prior art
-
-- [briancavalier/fx-ts](https://github.com/briancavalier/fx-ts/)
-- [susisu/effects](https://github.com/susisu/effects)
+describe("example", () => {
+  it("runs a stateful computation", () => {
+    const state = { current: 2 };
+    const result = runState(main(), state);
+    expect(result).toBe("current state is 6");
+    expect(state).toEqual({ current: 6 });
+  });
+});

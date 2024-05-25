@@ -17,7 +17,7 @@ export default config({}, [
     },
   },
   {
-    files: ["src/**/*.spec.ts"],
+    files: ["src/**/*.test.ts"],
     rules: {
       ...vitestPlugin.configs.recommended.rules,
     },
