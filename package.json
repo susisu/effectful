@@ -9,7 +9,7 @@
   "files": [
     "lib",
     "src",
-    "!src/**/*.spec.ts",
+    "!src/**/*.{test,spec}.{ts,tsx}",
     "!src/**/__tests__"
   ],
   "main": "./lib/index.js",
@@ -19,6 +19,10 @@
       "import": {
         "default": "./lib/index.js",
         "types": "./lib/index.d.ts"
+      },
+      "require": {
+        "default": "./lib/index.cjs",
+        "types": "./lib/index.d.cts"
       }
     }
   },
@@ -30,11 +34,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --coverage",
     "test:dev": "vitest dev --coverage.enabled --coverage.reporter=text",
-    "build": "tsc --build tsconfig.build.json",
-    "clean": "run-s clean:build clean:rm",
-    "clean:build": "tsc --build tsconfig.build.json --clean",
-    "clean:rm": "rimraf lib",
-    "prepublishOnly": "run-s clean format:check lint:check typecheck test build"
+    "build": "tsup",
+    "prepublishOnly": "run-s format:check lint:check typecheck test build"
   },
   "devDependencies": {
     "@susisu/eslint-config": "^0.0.82",
@@ -45,7 +46,7 @@
     "globals": "^15.3.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.2.5",
-    "rimraf": "^5.0.7",
+    "tsup": "^8.0.2",
     "typescript": "~5.4.5",
     "vitest": "^1.6.0"
   }
