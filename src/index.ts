@@ -1,4 +1,4 @@
-import { Single } from "./utils.js";
+import type { Single } from "./utils.js";
 
 /**
  * `EffectDef<A>` defines the set of computational effects.

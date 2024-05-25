@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Effectful, makeEffect, run } from "./index.js";
+import type { Effectful } from "./index.js";
+import { makeEffect, run } from "./index.js";
 
 declare module "./index.js" {
   interface EffectDef<A> {
@@ -26,10 +27,10 @@ describe("makeEffect", () => {
 });
 
 describe("run", () => {
-  const main = function* (): Effectful<"index.spec/identity", number> {
+  function* main(): Effectful<"index.spec/identity", number> {
     const x = yield* makeEffect<"index.spec/identity", number>("index.spec/identity", 42);
     return x;
-  };
+  }
 
   it("runs an effectful computation", () => {
     const res = run(main(), (x) => x, {
