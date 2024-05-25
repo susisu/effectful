@@ -1,18 +1,20 @@
 {
   "compilerOptions": {
+    "noEmit": true,
     "rootDir": "src",
     "outDir": "lib",
-    "incremental": true,
-    "target": "es2021",
-    "module": "node16",
-    "moduleResolution": "node16",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "lib": ["es2021"],
+    "lib": ["esnext"],
+    "jsx": "react-jsx",
     "strict": true,
     "noImplicitOverride": true,
     "sourceMap": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": false,
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*"
