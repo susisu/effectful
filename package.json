@@ -23,19 +23,17 @@
     }
   },
   "scripts": {
-    "lint": "run-s lint:eslint lint:prettier",
-    "lint-fix": "run-s lint-fix:eslint lint-fix:prettier",
-    "lint:eslint": "eslint '*.cjs' src",
-    "lint-fix:eslint": "eslint --fix '*.cjs' src",
-    "lint:prettier": "prettier --check '*.cjs' src",
-    "lint-fix:prettier": "prettier --write '*.cjs' src",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "format": "prettier --write '*.cjs' src",
+    "format:check": "prettier --check '*.cjs' src",
+    "lint": "eslint --fix '*.cjs' src",
+    "lint:check": "eslint '*.cjs' src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "build": "tsc --build tsconfig.build.json",
     "clean": "run-s clean:build clean:rm",
     "clean:build": "tsc --build tsconfig.build.json --clean",
     "clean:rm": "rimraf lib",
-    "prepublishOnly": "run-s clean lint test build"
+    "prepublishOnly": "run-s clean format:check lint:check typecheck test build"
   },
   "dependencies": {},
   "devDependencies": {
