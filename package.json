@@ -41,7 +41,6 @@
     "@susisu/eslint-config": "^0.0.82",
     "@vitest/coverage-v8": "^1.6.0",
     "eslint": "^8.26.0",
-    "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^15.3.0",
     "npm-run-all2": "^6.2.0",
