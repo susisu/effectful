@@ -21,86 +21,140 @@ import { perform, run } from "@susisu/effectful";
 
 declare module "@susisu/effectful" {
   interface EffectDef<A> {
-    "state/get": {
-      // constrains A = number and converts number to A
-      c: (x: number) => A;
+    // read environment variables
+    env: {
+      name: string;
+      // constrains A = string | undefined
+      c: (x: string | undefined) => A;
     };
-    "state/put": {
-      value: number;
-      // constrains A = undefined and converts undefined to A
-      c: (x: undefined) => A;
+    // log messages
+    log: {
+      message: string;
+      // constrains A = void
+      c: (x: void) => A;
+    };
+    // throw exceptions
+    exn: {
+      error: Error;
     };
   }
 }
 
 // 2. Define atomic computations using `perform`
 
-const getState: Eff<"state/get", number> = perform({
-  // property name in EffectDef
-  id: "state/get",
-  // property type in EffectDef
-  data: {
-    c: (x) => x,
-  },
-});
-
-const putState = (value: number): Eff<"state/put", undefined> => {
+function env(name: string): Eff<"env", string | undefined> {
   return perform({
-    id: "state/put",
-    data: {
-      value,
-      c: (x) => x,
-    },
+    // property name in EffectDef
+    id: "env",
+    // property type in EffectDef
+    data: { name, c: (x) => x },
   });
-};
+}
 
-// 3. Write effect handlers
+function log(message: string): Eff<"log", void> {
+  return perform({
+    id: "log",
+    data: { message, c: (x) => x },
+  });
+}
 
-function runState<T>(
-  // stateful computation
-  comp: Eff<"state/get" | "state/put", T>,
-  // state to be manipulated
-  state: { current: number },
-): T {
+function exn(error: Error): Eff<"exn", never> {
+  return perform({
+    id: "exn",
+    data: { error },
+  });
+}
+
+// 3. Write computations using generators
+
+function* getNumber(name: string): Eff<"env" | "exn", number> {
+  const value = yield* env(name);
+  if (value === undefined) {
+    yield* exn(new Error(`${name} is not defined`));
+  }
+  const number = Number(value);
+  if (Number.isNaN(number)) {
+    yield* exn(new Error(`${name} is not a number`));
+  }
+  return number;
+}
+
+function* main(): Eff<"env" | "log" | "exn", void> {
+  const a = yield* getNumber("NUMBER_A");
+  const b = yield* getNumber("NUMBER_B");
+  const message = `${a} + ${b} = ${a + b}`;
+  yield* log(message);
+}
+
+// 4. Write effect handlers
+
+// in app
+function runApp<A>(comp: Eff<"env" | "log" | "exn", A>): A {
   return run(
     comp,
     // return handler
     (x) => x,
     // effect handlers
     {
-      "state/get": (eff, resume) => {
-        return resume(eff.data.c(state.current));
+      env: (eff, resume) => {
+        const value = process.env[eff.data.name] ?? undefined;
+        return resume(eff.data.c(value));
       },
-      "state/put": (eff, resume) => {
-        state.current = eff.data.value;
+      log: (eff, resume) => {
+        console.log(eff.data.message);
         return resume(eff.data.c(undefined));
+      },
+      exn: (eff) => {
+        throw eff.data.error;
       },
     },
   );
 }
 
-// 4. Write computations using generators
-
-function* getAndMultiplyState(multiplier: number): Eff<"state/get", number> {
-  // use `yield*` to compose computations
-  const value = yield* getState;
-  return multiplier * value;
-}
-
-function* main(): Eff<"state/get" | "state/put", string> {
-  const newValue = yield* getAndMultiplyState(3);
-  yield* putState(newValue);
-  return `current state is ${newValue}`;
+// in test
+function runTest<A>(
+  comp: Eff<"env" | "log" | "exn", A>,
+  env: ReadonlyMap<string, string>,
+  log: (message: string) => void,
+): A {
+  return run(
+    comp,
+    // return handler
+    (x) => x,
+    // effect handlers
+    {
+      env: (eff, resume) => {
+        const value = env.get(eff.data.name);
+        return resume(eff.data.c(value));
+      },
+      log: (eff, resume) => {
+        log(eff.data.message);
+        return resume(eff.data.c(undefined));
+      },
+      exn: (eff) => {
+        throw eff.data.error;
+      },
+    },
+  );
 }
 
 // 5. Run the computation
 
-const state = { current: 2 };
-const result = runState(main(), state);
-console.log(result);
-// => "current state is 6"
-console.log(state);
-// => { current: 6 }
+// in app
+runApp(main());
+
+// in test
+describe("main", () => {
+  it("works", () => {
+    const env = new Map([
+      ["NUMBER_A", "2"],
+      ["NUMBER_B", "3"],
+    ]);
+    const log = vi.fn(() => {});
+    runTest(main(), env, log);
+    expect(log).toHaveBeenCalledWith("2 + 3 = 5");
+  });
+});
 ```
 
 ## License
