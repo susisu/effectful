@@ -23,12 +23,13 @@ export type EffectData<Row extends EffectId, A> = EffectDef<A>[Row];
  * `Effect<Row, A>` represents an effect that returns `A` when performed.
  * It distributes over `Row` i.e. `Effect<X | Y, A> = Effect<X, A> | Effect<Y, A>`
  */
-export type Effect<Row extends EffectId, A> = {
-  [Id in Row]: Readonly<{
-    id: Id;
-    data: EffectData<Id, A>;
-  }>;
-}[Row];
+export type Effect<Row extends EffectId, A> =
+  Row extends infer Id extends EffectId ?
+    Readonly<{
+      id: Row;
+      data: EffectData<Id, A>;
+    }>
+  : never;
 
 /**
  * `Effectful<Row, A>` represents an effectful computation that may perform effects in `Row` and
@@ -61,9 +62,9 @@ export function* perform<Row extends EffectId, A>(eff: Effect<Row, A>): Effectfu
  * `Handler<Row, R>` handles effects in `Row` and returns a value of type `R`.
  * It distributes over `Row` i.e. `Handler<X | Y, A> = Handler<X, A> | Handler<Y, A>`
  */
-export type Handler<Row extends EffectId, R> = {
-  [Id in Row]: <A>(eff: Effect<Id, A>, resume: (value: A) => R) => R;
-}[Row];
+export type Handler<Row extends EffectId, R> =
+  Row extends infer Id extends EffectId ? <A>(eff: Effect<Id, A>, resume: (value: A) => R) => R
+  : never;
 
 /**
  * `Handlers<Row, R>` is a set of effect handlers.
@@ -94,15 +95,18 @@ export function run<Row extends EffectId, A, R>(
       return ret(res.value);
     } else {
       const eff = res.value;
-      const handler = handlers[eff.id];
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+      const handler = handlers[eff.id as keyof typeof handlers];
       let resumed = false;
-      return handler(eff, (value) => {
+      const resume = (value: A): R => {
         if (resumed) {
           throw new Error("resume cannot be called more than once");
         }
         resumed = true;
         return loop(value);
-      });
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      return handler(eff as any, resume);
     }
   };
   return loop();
