@@ -96,7 +96,7 @@ export function run<Row extends EffectId, A, R>(
     } else {
       const eff = res.value;
       // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-      const handler = handlers[eff.id as keyof typeof handlers];
+      const handler = handlers[eff.id as Row];
       let resumed = false;
       const resume = (value: A): R => {
         if (resumed) {
@@ -105,8 +105,8 @@ export function run<Row extends EffectId, A, R>(
         resumed = true;
         return loop(value);
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      return handler(eff as any, resume);
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+      return handler(eff as never, resume);
     }
   };
   return loop();
