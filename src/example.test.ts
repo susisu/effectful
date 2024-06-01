@@ -75,8 +75,8 @@ function* main(): Eff<"env" | "log" | "exn", void> {
 
 // 4. Write effect handlers
 
-// function runApp<A>(comp: Eff<"env" | "log" | "exn", A>): A {
-//   return run(
+// function runApp<A>(comp: Eff<"env" | "log" | "exn", A>): A | undefined {
+//   return run<"env" | "log" | "exn", A, A | undefined>(
 //     comp,
 //     // return handler
 //     (x) => x,
@@ -91,7 +91,8 @@ function* main(): Eff<"env" | "log" | "exn", void> {
 //         return resume(eff.data.c(undefined));
 //       },
 //       exn: (eff) => {
-//         throw eff.data.error;
+//         console.error(eff.data.error);
+//         return undefined;
 //       },
 //     },
 //   );
@@ -102,25 +103,19 @@ function runTest<A>(
   env: ReadonlyMap<string, string>,
   log: (message: string) => void,
 ): A {
-  return run(
-    comp,
-    // return handler
-    (x) => x,
-    // effect handlers
-    {
-      env: (eff, resume) => {
-        const value = env.get(eff.data.name);
-        return resume(eff.data.c(value));
-      },
-      log: (eff, resume) => {
-        log(eff.data.message);
-        return resume(eff.data.c(undefined));
-      },
-      exn: (eff) => {
-        throw eff.data.error;
-      },
+  return run(comp, (x) => x, {
+    env: (eff, resume) => {
+      const value = env.get(eff.data.name);
+      return resume(eff.data.c(value));
     },
-  );
+    log: (eff, resume) => {
+      log(eff.data.message);
+      return resume(eff.data.c(undefined));
+    },
+    exn: (eff) => {
+      throw eff.data.error;
+    },
+  });
 }
 
 // 5. Run the computation
