@@ -8,7 +8,7 @@ declare module "." {
   }
 }
 
-describe("run", () => {
+describe("perform, run", () => {
   function* main(): Effectful<"index.spec/identity", number> {
     const x = yield* perform<"index.spec/identity", number>({
       id: "index.spec/identity",
