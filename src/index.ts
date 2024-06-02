@@ -111,3 +111,28 @@ export function run<Row extends EffectId, A, R>(
   };
   return loop();
 }
+
+/**
+ * Creates a computation that does not perform any effect and returns the given value.
+ * @param value The value that the compuation returns.
+ * @returns A new computation.
+ */
+// eslint-disable-next-line require-yield
+export function* pure<Row extends EffectId, A>(value: A): Effectful<Row, A> {
+  return value;
+}
+
+/**
+ * Composes two computations sequentially.
+ * @param comp A computation.
+ * @param func A function that takes the return value of the first computation and returns a
+ * subsequent computation.
+ * @returns A composed computation.
+ */
+export function* bind<Row extends EffectId, A, B>(
+  comp: Effectful<Row, A>,
+  func: (value: A) => Effectful<Row, B>,
+): Effectful<Row, B> {
+  const value = yield* comp;
+  return yield* func(value);
+}
