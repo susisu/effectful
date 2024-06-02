@@ -4,7 +4,7 @@ import { vi, describe, it, expect } from "vitest";
 import type { Eff } from ".";
 import { perform, run } from ".";
 
-// 1. Augment `EffectDef<A>` to define effects
+// 1. Define effects by augmenting `EffectDef<A>` interface.
 
 declare module "@susisu/effectful" {
   interface EffectDef<A> {
@@ -27,7 +27,7 @@ declare module "@susisu/effectful" {
   }
 }
 
-// 2. Define atomic computations using `perform`
+// 2. (optional) Define atomic computations that perform effects using `perform`.
 
 function env(name: string): Eff<"env", string | undefined> {
   return perform({
@@ -52,9 +52,10 @@ function exn(error: Error): Eff<"exn", never> {
   });
 }
 
-// 3. Write computations using generators
+// 3. Write computations using generators.
 
 function* getNumber(name: string): Eff<"env" | "exn", number> {
+  // use `yield*` to perform effects / compose computations
   const value = yield* env(name);
   if (value === undefined) {
     yield* exn(new Error(`${name} is not defined`));
@@ -73,8 +74,9 @@ function* main(): Eff<"env" | "log" | "exn", void> {
   yield* log(message);
 }
 
-// 4. Write effect handlers
+// 4. Write effect handlers for each use case.
 
+// // in app
 // function runApp<A>(comp: Eff<"env" | "log" | "exn", A>): A | undefined {
 //   return run<"env" | "log" | "exn", A, A | undefined>(
 //     comp,
@@ -98,6 +100,7 @@ function* main(): Eff<"env" | "log" | "exn", void> {
 //   );
 // }
 
+// in test
 function runTest<A>(
   comp: Eff<"env" | "log" | "exn", A>,
   env: ReadonlyMap<string, string>,
@@ -118,10 +121,12 @@ function runTest<A>(
   });
 }
 
-// 5. Run the computation
+// 5. Run computations with handlers.
 
+// // in app
 // runApp(main());
 
+// in test
 describe("main", () => {
   it("works", () => {
     const env = new Map([
