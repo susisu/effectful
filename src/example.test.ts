@@ -1,11 +1,11 @@
 // Tests the example code on README
 
-import type { Eff } from "@susisu/effectful";
-import { perform, run } from "@susisu/effectful";
+import type { Eff } from ".";
+import { perform, run } from ".";
 
 // 1. Declare effects by augmenting `EffectDef<A>` interface.
 
-declare module "@susisu/effectful" {
+declare module "." {
   interface EffectDef<A> {
     // read environment variables
     env: {
