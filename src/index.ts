@@ -94,17 +94,19 @@ export function run<Row extends EffectId, A, R>(
     if (res.done) {
       return ret(res.value);
     } else {
-      const eff = res.value;
-      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-      const handler = handlers[eff.id as Row];
       let resumed = false;
-      const resume = (value: A): R => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resume = (value: any): R => {
         if (resumed) {
           throw new Error("resume cannot be called more than once");
         }
         resumed = true;
         return loop(value);
       };
+
+      const eff = res.value;
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+      const handler = handlers[eff.id as Row];
       // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
       return handler(eff as never, resume);
     }
@@ -135,4 +137,50 @@ export function* bind<Row extends EffectId, A, B>(
 ): Effectful<Row, B> {
   const value = yield* comp;
   return yield* func(value);
+}
+
+/**
+ * Handles a subset of effects performed by a computation.
+ * @param comp The effectful computation.
+ * @param ret A function that handles the return value of the computation.
+ * @param handlers Effect handlers that handle effects performed in the computation.
+ * @returns The same computation that only performs the rest subset of the effects.
+ */
+export function handle<Row extends EffectId, SubRow extends Row, A, R>(
+  comp: Effectful<Row, A>,
+  ret: (value: A) => Effectful<Exclude<Row, SubRow>, R>,
+  handlers: Handlers<SubRow, Effectful<Exclude<Row, SubRow>, R>>,
+): Effectful<Exclude<Row, SubRow>, R> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const loop = (value?: any): Effectful<Exclude<Row, SubRow>, R> => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const res = comp.next(value);
+    if (res.done) {
+      return ret(res.value);
+    } else {
+      let resumed = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resume = (value: any): Effectful<Exclude<Row, SubRow>, R> => {
+        if (resumed) {
+          throw new Error("resume cannot be called more than once");
+        }
+        resumed = true;
+        return loop(value);
+      };
+
+      const eff = res.value;
+      // `eff.id in handlers` does not always imply `eff.id: SubRow` because of subtyping, but we assume so.
+      // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
+      if (eff.id in handlers) {
+        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+        const handler = handlers[eff.id as SubRow];
+        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+        return handler(eff as never, resume);
+      } else {
+        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+        return bind(perform(eff as Effect<Exclude<Row, SubRow>, any>), resume);
+      }
+    }
+  };
+  return loop();
 }
