@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Effectful } from ".";
-import { perform, run, pure, bind, handle } from ".";
+import { perform, run, map, pure, bind, handle } from ".";
 
 declare module "." {
   interface EffectDef<A> {
@@ -48,6 +48,15 @@ describe("perform, run", () => {
         },
       });
     }).toThrow("resume cannot be called more than once");
+  });
+});
+
+describe("map", () => {
+  it("maps the return value of a computation", () => {
+    const comp = pure<never, number>(42);
+    const func = (x: number): string => x.toString();
+    const res = run(map(comp, func), (x) => x, {});
+    expect(res).toBe("42");
   });
 });
 

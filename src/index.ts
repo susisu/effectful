@@ -115,6 +115,20 @@ export function run<Row extends EffectId, A, R>(
 }
 
 /**
+ * Maps the return value of the computation.
+ * @param comp A computation.
+ * @param func A function that maps the return value of the computation.
+ * @returns A computation that returns the value mapped by `func`.
+ */
+export function* map<Row extends EffectId, A, B>(
+  comp: Effectful<Row, A>,
+  func: (value: A) => B,
+): Effectful<Row, B> {
+  const value = yield* comp;
+  return func(value);
+}
+
+/**
  * Creates a computation that does not perform any effect and returns the given value.
  * @param value The value that the compuation returns.
  * @returns A new computation.
