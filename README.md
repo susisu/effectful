@@ -123,31 +123,31 @@ function* main(): Eff<"env" | "log" | "exn" | "async", void> {
 // 4. Write effect handlers.
 
 // in app
-// function runApp<A>(comp: Eff<"env" | "log" | "exn" | "async", A>): Promise<A | undefined> {
-//   return run<"env" | "log" | "exn" | "async", A, Promise<A | undefined>>(
-//     comp,
-//     // return handler
-//     (x) => Promise.resolve(x),
-//     // effect handlers
-//     {
-//       env: (eff, resume) => {
-//         const value = process.env[eff.data.name] ?? undefined;
-//         return resume(eff.data.ev(value));
-//       },
-//       log: (eff, resume) => {
-//         console.log(eff.data.message);
-//         return resume(eff.data.ev(undefined));
-//       },
-//       exn: (eff) => {
-//         console.error(eff.data.error);
-//         return Promise.resolve(undefined);
-//       },
-//       async: (eff, resume) => {
-//         return eff.data.promise.then(resume);
-//       },
-//     },
-//   );
-// }
+function runApp<A>(comp: Eff<"env" | "log" | "exn" | "async", A>): Promise<A | undefined> {
+  return run<"env" | "log" | "exn" | "async", A, Promise<A | undefined>>(
+    comp,
+    // return handler
+    (x) => Promise.resolve(x),
+    // effect handlers
+    {
+      env: (eff, resume) => {
+        const value = process.env[eff.data.name] ?? undefined;
+        return resume(eff.data.ev(value));
+      },
+      log: (eff, resume) => {
+        console.log(eff.data.message);
+        return resume(eff.data.ev(undefined));
+      },
+      exn: (eff) => {
+        console.error(eff.data.error);
+        return Promise.resolve(undefined);
+      },
+      async: (eff, resume) => {
+        return eff.data.promise.then(resume);
+      },
+    },
+  );
+}
 
 // in test
 function runTest<A>(
@@ -176,7 +176,7 @@ function runTest<A>(
 // 5. Run computations.
 
 // in app
-// runApp(main());
+runApp(main());
 
 // in test
 import { vi, describe, it, expect } from "vitest";
