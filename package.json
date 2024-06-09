@@ -1,6 +1,6 @@
 {
   "name": "@susisu/effectful",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Algebraic effects in TypeScript based on generators",
   "repository": "https://github.com/susisu/effectful.git",
   "author": "Susisu <susisu2413@yahoo.co.jp>",
