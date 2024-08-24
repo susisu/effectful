@@ -1,5 +1,5 @@
 /**
- * `EffectDef<A>` defines the set of effects.
+ * `EffectRegistry<A>` defines the set of effects.
  * Users can extend this interface to define custom effects.
  *
  * Each property defines an effect; the property name is the ID of the effect, and the property type
@@ -7,17 +7,17 @@
  * @param A Placeholder for the type that is returned when an effect is performed.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface EffectDef<A> {}
+export interface EffectRegistry<A> {}
 
 /**
  * `EffectId` is the union of all possible effect IDs.
  */
-export type EffectId = keyof EffectDef<unknown>;
+export type EffectId = keyof EffectRegistry<unknown>;
 
 /**
  * `EffectData<Row, A>` represents the data types associated to the effects in `Row`
  */
-export type EffectData<Row extends EffectId, A> = EffectDef<A>[Row];
+export type EffectData<Row extends EffectId, A> = EffectRegistry<A>[Row];
 
 /**
  * `Effect<Row, A>` represents an effect that returns `A` when performed.

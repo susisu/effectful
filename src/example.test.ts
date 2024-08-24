@@ -3,10 +3,10 @@
 import type { Eff } from ".";
 import { perform, run } from ".";
 
-// 1. Declare effects by augmenting `EffectDef<A>` interface.
+// 1. Declare effects by augmenting `EffectRegistry<A>` interface.
 
 declare module "." {
-  interface EffectDef<A> {
+  interface EffectRegistry<A> {
     // read environment variables
     env: {
       name: string;
@@ -34,9 +34,9 @@ declare module "." {
 
 function env(name: string): Eff<"env", string | undefined> {
   return perform({
-    // property name in `EffectDef<A>`
+    // property name in `EffectRegistry<A>`
     id: "env",
-    // property type in `EffectDef<A>`
+    // property type in `EffectRegistry<A>`
     data: {
       name,
       // NOTE: `ev` should be an identity function

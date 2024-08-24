@@ -3,7 +3,7 @@ import type { Effectful } from ".";
 import { perform, run, map, pure, bind, handle } from ".";
 
 declare module "." {
-  interface EffectDef<A> {
+  interface EffectRegistry<A> {
     "index.test/identity": A;
     "index.test/call": () => A;
   }
