@@ -1,5 +1,5 @@
 import { config } from "@susisu/eslint-config";
-import vitestPlugin from "eslint-plugin-vitest";
+import vitestPlugin from "@vitest/eslint-plugin";
 import globals from "globals";
 
 export default config({}, [
