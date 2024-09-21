@@ -14,54 +14,50 @@ pnpm add @susisu/effectful
 ## Example
 
 ``` ts
-import type { Eff } from "@susisu/effectful";
-import { perform, run } from "@susisu/effectful";
+// 1. Register effects by augmenting `EffectRegistry<T>`.
 
-// 1. Declare effects by augmenting `EffectRegistry<T>` interface.
-
-declare module "@susisu/effectful" {
+declare module "." {
   interface EffectRegistry<T> {
-    // read environment variables
-    env: {
-      name: string;
-      // NOTE: `ev` is short for `evidence`, and it effectively constrains T = string | undefined
-      ev: (x: string | undefined) => T;
+    // Reads contents of a file
+    read: {
+      filename: string;
+      // `ev` is short for "evidence" and it constrains `T` = `string`
+      ev: (x: string) => T;
     };
-    // log messages
-    log: {
+    // Prints a message
+    print: {
       message: string;
       ev: (x: void) => T;
     };
-    // throw exceptions
-    exn: {
-      error: Error;
-    };
-    // run async operations
+    // Waits for a promise
     async: {
       promise: Promise<T>;
     };
   }
 }
 
-// 2. For convenience, define atomic computations each `perform`s a single effect.
-// `Eff<Row, T>` is the type of computations which performs effects declared in `Row` and returns `T`.
+import type { Eff } from "@susisu/effectful";
+import { perform } from "@susisu/effectful";
 
-function env(name: string): Eff<"env", string | undefined> {
+// 2. Define effect constructors (more accurately, atomic computations) for convenience.
+// `Eff<Row, T>` is the type of a compuation that performs effects in `Row` and returns `T`.
+
+function read(filename: string): Eff<"read", string> {
   return perform({
-    // property name in `EffectRegistry<T>`
-    id: "env",
-    // property type in `EffectRegistry<T>`
+    // Property name in `EffectRegistry<T>`
+    id: "read",
+    // Property type in `EffectRegistry<T>`
     data: {
-      name,
-      // NOTE: `ev` should be an identity function
+      filename,
+      // `ev` should be an identity function
       ev: (x) => x,
     },
   });
 }
 
-function log(message: string): Eff<"log", void> {
+function print(message: string): Eff<"print", void> {
   return perform({
-    id: "log",
+    id: "print",
     data: {
       message,
       ev: (x) => x,
@@ -69,16 +65,7 @@ function log(message: string): Eff<"log", void> {
   });
 }
 
-function exn(error: Error): Eff<"exn", never> {
-  return perform({
-    id: "exn",
-    data: {
-      error,
-    },
-  });
-}
-
-function async<T>(promise: Promise<T>): Eff<"async", A> {
+function async<T>(promise: Promise<T>): Eff<"async", T> {
   return perform({
     id: "async",
     data: {
@@ -87,87 +74,47 @@ function async<T>(promise: Promise<T>): Eff<"async", A> {
   });
 }
 
-// 3. Write computations using generators.
+// 3. Write complex computations using generators.
 
-function* getNumber(name: string): Eff<"env" | "exn", number> {
-  // use `yield*` to perform effects
-  // NOTE: str is typed as `string | undefined`
-  const str = yield* env(name);
-  if (str === undefined) {
-    yield* exn(new Error(`environment variable "${name}" is not defined`));
-  }
-  const num = Number(str);
-  if (Number.isNaN(num)) {
-    yield* exn(new Error(`environment variable "${name}" is not a number`));
-  }
-  return num;
+function* getSize(filename: string): Eff<"read", number> {
+  // Use `yield*` to perform effects
+  const contents = yield* read(filename);
+  return contents.length;
 }
 
-function* delay(millis: number): Eff<"async", void> {
-  yield* async(
-    new Promise((resolve) => {
-      setTimeout(resolve, millis);
-    }),
-  );
-}
-
-function* main(): Eff<"env" | "log" | "exn" | "async", void> {
+function* main(): Eff<"read" | "print", void> {
   // `yield*` can also be used to compose computations
-  const a = yield* getNumber("NUMBER_A");
-  const b = yield* getNumber("NUMBER_B");
-  yield* delay(1000);
-  const message = `${a} + ${b} = ${a + b}`;
-  yield* log(message);
+  const size = yield* getSize("./input.txt");
+  yield* print(`The file contains ${size} characters!`);
 }
 
-// 4. Write effect handlers.
+// 4. Write interpreters.
 
-// in app
-function runApp<T>(comp: Eff<"env" | "log" | "exn" | "async", T>): Promise<T | undefined> {
-  return run<"env" | "log" | "exn" | "async", T, Promise<T | undefined>>(
-    comp,
-    // return handler
-    (x) => Promise.resolve(x),
-    // effect handlers
-    {
-      env: (eff, resume) => {
-        const value = process.env[eff.data.name] ?? undefined;
-        return resume(eff.data.ev(value));
-      },
-      log: (eff, resume) => {
-        console.log(eff.data.message);
-        return resume(eff.data.ev(undefined));
-      },
-      exn: (eff) => {
-        console.error(eff.data.error);
-        return Promise.resolve(undefined);
-      },
-      async: (eff, resume) => {
-        return eff.data.promise.then(resume);
-      },
+import type { EffectId } from "@susisu/effectful";
+import { interpose, run } from "@susisu/effectful";
+import { readFile } from "fs/promises";
+
+function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff<Row | "async", T> {
+  return interpose<"read", Row | "async", T>(comp, {
+    *read(eff, resume) {
+      const contents = yield* async(readFile(eff.data.filename, "utf-8"));
+      return yield* resume(eff.data.ev(contents));
     },
-  );
+  });
 }
 
-// in test
-function runTest<T>(
-  comp: Eff<"env" | "log" | "exn" | "async", T>,
-  env: ReadonlyMap<string, string>,
-  log: (message: string) => void,
-): Promise<T> {
+function interpretPrint<Row extends EffectId, T>(comp: Eff<Row | "print", T>): Eff<Row, T> {
+  return interpose<"print", Row, T>(comp, {
+    *print(eff, resume) {
+      console.log(eff.data.message);
+      return yield* resume(eff.data.ev(undefined));
+    },
+  });
+}
+
+function runAsync<T>(comp: Eff<"async", T>): Promise<T> {
   return run(comp, (x) => Promise.resolve(x), {
-    env: (eff, resume) => {
-      const value = env.get(eff.data.name);
-      return resume(eff.data.ev(value));
-    },
-    log: (eff, resume) => {
-      log(eff.data.message);
-      return resume(eff.data.ev(undefined));
-    },
-    exn: (eff) => {
-      return Promise.reject(eff.data.error);
-    },
-    async: (eff, resume) => {
+    async(eff, resume) {
       return eff.data.promise.then(resume);
     },
   });
@@ -175,22 +122,8 @@ function runTest<T>(
 
 // 5. Run computations.
 
-// in app
-runApp(main());
-
-// in test
-import { vi, describe, it, expect } from "vitest";
-
-describe("main", () => {
-  it("works", async () => {
-    const env = new Map([
-      ["NUMBER_A", "2"],
-      ["NUMBER_B", "3"],
-    ]);
-    const log = vi.fn(() => {});
-    await runTest(main(), env, log);
-    expect(log).toHaveBeenCalledWith("2 + 3 = 5");
-  });
+runAsync(interpretPrint(interpretRead(main()))).catch((err) => {
+  console.error(err);
 });
 ```
 
