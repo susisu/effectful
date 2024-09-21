@@ -152,12 +152,12 @@ export function run<Row extends EffectId, T, U>(
  * @param handlers A set of effect handlers that handles effects performed in the computation.
  * @returns A modified computation.
  */
-export function* interpose<Row extends EffectId, SubRow extends Row, T>(
-  comp: Effectful<Row, T>,
-  handlers: Handlers<SubRow, Effectful<Exclude<Row, SubRow>, T>>,
-): Effectful<Exclude<Row, SubRow>, T> {
+export function* interpose<RowA extends EffectId, RowB extends EffectId, T>(
+  comp: Effectful<RowA | RowB, T>,
+  handlers: Handlers<RowA, Effectful<RowB, T>>,
+): Effectful<RowB, T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loop = (value?: any): Effectful<Exclude<Row, SubRow>, T> => {
+  const loop = (value?: any): Effectful<RowB, T> => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = comp.next(value);
     if (res.done) {
@@ -165,7 +165,7 @@ export function* interpose<Row extends EffectId, SubRow extends Row, T>(
     } else {
       let resumed = false;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resume = (value: any): Effectful<Exclude<Row, SubRow>, T> => {
+      const resume = (value: any): Effectful<RowB, T> => {
         if (resumed) {
           throw new Error("resume cannot be called more than once");
         }
@@ -173,17 +173,17 @@ export function* interpose<Row extends EffectId, SubRow extends Row, T>(
         return loop(value);
       };
       const eff = res.value;
-      // `eff.id in handlers` does not always imply `eff.id: SubRow` because of subtyping, but here
-      // we assume so.
+      // `eff.id in handlers` does not always imply `eff.id: RowA` because of subtyping, but here we
+      // assume so for convenience.
       // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
       if (eff.id in handlers) {
         // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-        const handler = handlers[eff.id as SubRow];
+        const handler = handlers[eff.id as RowA];
         // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
         return handler(eff as never, resume);
       } else {
         // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
-        return bind(perform(eff as Effect<Exclude<Row, SubRow>, any>), resume);
+        return bind(perform(eff as Effect<RowB, any>), resume);
       }
     }
   };

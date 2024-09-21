@@ -104,7 +104,7 @@ describe("interpose", () => {
   }
 
   it("re-interprets a subset of effects", () => {
-    const comp = interpose(main(), {
+    const comp = interpose<"index.test/call", "index.test/identity", number>(main(), {
       *"index.test/call"(eff, resume) {
         const v = yield* identity(eff.data());
         return yield* resume(v);
@@ -119,7 +119,7 @@ describe("interpose", () => {
   });
 
   it("throws if resume is called more than once", () => {
-    const comp = interpose(main(), {
+    const comp = interpose<"index.test/call", "index.test/identity", number>(main(), {
       *"index.test/call"(eff, resume) {
         yield* resume(eff.data());
         return yield* resume(eff.data());
