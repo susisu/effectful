@@ -1,16 +1,16 @@
 /**
- * `EffectRegistry<T>` defines the set of effects.
- * Users can extend this interface to define custom effects.
+ * `EffectRegistry<T>` is the global registry for effects.
+ * Users can extend this interface to register custom effects.
  *
- * Each property defines an effect; the property name is the ID of the effect, and the property type
- * is the associated data type of the effect.
- * @param T Placeholder for the type that is returned when an effect is performed.
+ * Each property registers an effect; the property name is the ID of the effect, and the property
+ * type is the associated data type of the effect.
+ * @param T The type that is returned when an effect is performed.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface EffectRegistry<T> {}
 
 /**
- * `EffectId` is the union of all possible effect IDs.
+ * `EffectId` is the union of all the possible effect IDs.
  */
 export type EffectId = keyof EffectRegistry<unknown>;
 
@@ -32,16 +32,11 @@ export type Effect<Row extends EffectId, T> =
   : never;
 
 /**
- * `Effectful<Row, T>` represents an effectful computation that may perform effects in `Row` and
+ * `Effectful<Row, T>` represents an effectful computation that performs effects in `Row` and
  * returns `T`.
  */
-export type Effectful<Row extends EffectId, T> = Generator<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Effect<Row, any>,
-  T,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
->;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Effectful<Row extends EffectId, T> = Generator<Effect<Row, any>, T, any>;
 
 /**
  * `Eff<Row, T>` is an alias for `Effectful<Row, T>`.
@@ -49,9 +44,9 @@ export type Effectful<Row extends EffectId, T> = Generator<
 export type Eff<Row extends EffectId, T> = Effectful<Row, T>;
 
 /**
- * Creates an effectful computation that performs a single effect.
- * @param eff The effect to perform.
- * @returns An effectful computation.
+ * Creates an computation that performs a single effect.
+ * @param eff An effect to perform.
+ * @returns A new computation.
  */
 export function* perform<Row extends EffectId, T>(eff: Effect<Row, T>): Effectful<Row, T> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -59,10 +54,10 @@ export function* perform<Row extends EffectId, T>(eff: Effect<Row, T>): Effectfu
 }
 
 /**
- * Maps the return value of the computation.
+ * Transforms the return value of a computation by a function.
  * @param comp A computation.
- * @param func A function that maps the return value of the computation.
- * @returns A computation that returns the value mapped by `func`.
+ * @param func A function that transforms the return value of the computation.
+ * @returns A computation that returns the value transformed by the function.
  */
 export function* map<Row extends EffectId, T, U>(
   comp: Effectful<Row, T>,
@@ -73,8 +68,8 @@ export function* map<Row extends EffectId, T, U>(
 }
 
 /**
- * Creates a computation that does not perform any effect and returns the given value.
- * @param value The value that the compuation returns.
+ * Creates a computation that does not perform any effects.
+ * @param value A value that is returned by the compuation.
  * @returns A new computation.
  */
 // eslint-disable-next-line require-yield
@@ -98,7 +93,7 @@ export function* bind<Row extends EffectId, T, U>(
 }
 
 /**
- * `Handler<Row, U>` handles effects in `Row` and returns a value of type `U`.
+ * `Handler<Row, U>` handles (or interprets) effects in `Row` and returns a value of type `U`.
  * It distributes over `Row` i.e. `Handler<X | Y, U> = Handler<X, U> | Handler<Y, U>`
  */
 export type Handler<Row extends EffectId, U> =
@@ -113,13 +108,12 @@ export type Handlers<Row extends EffectId, U> = Readonly<{
 }>;
 
 /**
- * Runs an effectful computation.
- * @param comp The effectful computation to run.
- * It can `yield*` to compose other effectful computations.
+ * Runs an effectful computation by interpreting effects by handlers.
+ * @param comp A computation to run.
  * @param ret A function that handles the return value of the computation.
- * @param handlers Effect handlers that handle effects performed in the computation.
- * An effect handler can resolve an effect and resume the computation, or abort the whole computation.
- * @returns A value returned from `ret` or `handlers`.
+ * @param handlers A set of effect handlers that handles effects performed in the computation.
+ * @returns A value returned by `ret` if the computation has completed, or by `handlers` if it has
+ * been aborted.
  */
 export function run<Row extends EffectId, T, U>(
   comp: Effectful<Row, T>,
@@ -142,7 +136,6 @@ export function run<Row extends EffectId, T, U>(
         resumed = true;
         return loop(value);
       };
-
       const eff = res.value;
       // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
       const handler = handlers[eff.id as Row];
@@ -155,10 +148,10 @@ export function run<Row extends EffectId, T, U>(
 
 /**
  * Handles a subset of effects performed by a computation.
- * @param comp The effectful computation.
+ * @param comp A computation.
  * @param ret A function that handles the return value of the computation.
- * @param handlers Effect handlers that handle effects performed in the computation.
- * @returns The same computation that only performs the rest subset of the effects.
+ * @param handlers A set of effect handlers that handles effects performed in the computation.
+ * @returns A modified computation.
  */
 export function handle<Row extends EffectId, SubRow extends Row, T, U>(
   comp: Effectful<Row, T>,
@@ -181,9 +174,9 @@ export function handle<Row extends EffectId, SubRow extends Row, T, U>(
         resumed = true;
         return loop(value);
       };
-
       const eff = res.value;
-      // `eff.id in handlers` does not always imply `eff.id: SubRow` because of subtyping, but we assume so.
+      // `eff.id in handlers` does not always imply `eff.id: SubRow` because of subtyping, but here
+      // we assume so.
       // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
       if (eff.id in handlers) {
         // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
