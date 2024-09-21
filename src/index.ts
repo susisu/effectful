@@ -7,7 +7,7 @@
  * @param T The type that is returned when an effect is performed.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface EffectRegistry<T> {}
+export interface EffectRegistry<out T> {}
 
 /**
  * `EffectId` is the union of all the possible effect IDs.
