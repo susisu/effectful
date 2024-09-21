@@ -9,47 +9,19 @@ declare module "." {
   }
 }
 
-describe("perform, run", () => {
-  function* main(): Effectful<"index.test/identity", number> {
-    const x = yield* perform<"index.test/identity", number>({
-      id: "index.test/identity",
-      data: 42,
-    });
-    return x;
-  }
-
-  it("runs an effectful computation", () => {
-    const res = run(main(), (x) => x, {
-      "index.test/identity": (eff, resume) => resume(eff.data),
-    });
-    expect(res).toBe(42);
+function identity<T>(value: T): Effectful<"index.test/identity", T> {
+  return perform({
+    id: "index.test/identity",
+    data: value,
   });
+}
 
-  it("allows the return handler to modify the return value of the computation", () => {
-    const res = run(main(), (x) => x.toString(), {
-      "index.test/identity": (eff, resume) => resume(eff.data),
-    });
-    expect(res).toBe("42");
+function call<T>(func: () => T): Effectful<"index.test/call", T> {
+  return perform({
+    id: "index.test/call",
+    data: func,
   });
-
-  it("allows the effect handlers to abort the computation", () => {
-    const res = run(main(), (x) => x, {
-      "index.test/identity": () => 666,
-    });
-    expect(res).toBe(666);
-  });
-
-  it("throws if resume is called more than once", () => {
-    expect(() => {
-      run(main(), (x) => x, {
-        "index.test/identity": (eff, resume) => {
-          resume(eff.data);
-          return resume(eff.data);
-        },
-      });
-    }).toThrow("resume cannot be called more than once");
-  });
-});
+}
 
 describe("map", () => {
   it("maps the return value of a computation", () => {
@@ -77,39 +49,87 @@ describe("bind", () => {
   });
 });
 
+describe("run", () => {
+  function* main(): Effectful<"index.test/identity", number> {
+    const x = yield* identity(42);
+    return x;
+  }
+
+  it("runs an effectful computation", () => {
+    const res = run(main(), (x) => x, {
+      "index.test/identity"(eff, resume) {
+        return resume(eff.data);
+      },
+    });
+    expect(res).toBe(42);
+  });
+
+  it("allows the return handler to modify the return value of the computation", () => {
+    const res = run(main(), (x) => x.toString(), {
+      "index.test/identity"(eff, resume) {
+        return resume(eff.data);
+      },
+    });
+    expect(res).toBe("42");
+  });
+
+  it("allows the effect handlers to abort the computation", () => {
+    const res = run(main(), (x) => x, {
+      "index.test/identity"(_eff, _resume) {
+        return 666;
+      },
+    });
+    expect(res).toBe(666);
+  });
+
+  it("throws if resume is called more than once", () => {
+    expect(() => {
+      run(main(), (x) => x, {
+        "index.test/identity"(eff, resume) {
+          resume(eff.data);
+          return resume(eff.data);
+        },
+      });
+    }).toThrow("resume cannot be called more than once");
+  });
+});
+
 describe("interpose", () => {
   function* main(): Effectful<"index.test/identity" | "index.test/call", number> {
-    const x = yield* perform<"index.test/call", number>({
-      id: "index.test/call",
-      data: () => 42,
-    });
-    const y = yield* perform<"index.test/identity", number>({
-      id: "index.test/identity",
-      data: 2,
-    });
-    return x * y;
+    const x = yield* identity(1);
+    const y = yield* call(() => 2);
+    const z = yield* identity(4);
+    const w = yield* call(() => 8);
+    return x + y + z + w;
   }
 
   it("re-interprets a subset of effects", () => {
     const comp = interpose(main(), {
-      "index.test/call": (eff, resume) => resume(eff.data()),
+      *"index.test/call"(eff, resume) {
+        const v = yield* identity(eff.data());
+        return yield* resume(v);
+      },
     });
     const res = run(comp, (x) => x, {
-      "index.test/identity": (eff, resume) => resume(eff.data),
+      "index.test/identity"(eff, resume) {
+        return resume(eff.data);
+      },
     });
-    expect(res).toBe(84);
+    expect(res).toBe(15);
   });
 
   it("throws if resume is called more than once", () => {
     const comp = interpose(main(), {
-      "index.test/call": (eff, resume) => {
-        resume(eff.data());
-        return resume(eff.data());
+      *"index.test/call"(eff, resume) {
+        yield* resume(eff.data());
+        return yield* resume(eff.data());
       },
     });
     expect(() => {
       run(comp, (x) => x, {
-        "index.test/identity": (eff, resume) => resume(eff.data),
+        "index.test/identity"(eff, resume) {
+          return resume(eff.data);
+        },
       });
     }).toThrow("resume cannot be called more than once");
   });
