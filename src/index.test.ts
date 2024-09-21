@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Effectful } from ".";
-import { perform, run, map, pure, bind, handle } from ".";
+import { perform, map, pure, bind, run, handle } from ".";
 
 declare module "." {
   interface EffectRegistry<T> {

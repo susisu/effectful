@@ -59,6 +59,45 @@ export function* perform<Row extends EffectId, T>(eff: Effect<Row, T>): Effectfu
 }
 
 /**
+ * Maps the return value of the computation.
+ * @param comp A computation.
+ * @param func A function that maps the return value of the computation.
+ * @returns A computation that returns the value mapped by `func`.
+ */
+export function* map<Row extends EffectId, T, U>(
+  comp: Effectful<Row, T>,
+  func: (value: T) => U,
+): Effectful<Row, U> {
+  const value = yield* comp;
+  return func(value);
+}
+
+/**
+ * Creates a computation that does not perform any effect and returns the given value.
+ * @param value The value that the compuation returns.
+ * @returns A new computation.
+ */
+// eslint-disable-next-line require-yield
+export function* pure<Row extends EffectId, T>(value: T): Effectful<Row, T> {
+  return value;
+}
+
+/**
+ * Composes two computations sequentially.
+ * @param comp A computation.
+ * @param func A function that takes the return value of the first computation and returns a
+ * subsequent computation.
+ * @returns A composed computation.
+ */
+export function* bind<Row extends EffectId, T, U>(
+  comp: Effectful<Row, T>,
+  func: (value: T) => Effectful<Row, U>,
+): Effectful<Row, U> {
+  const value = yield* comp;
+  return yield* func(value);
+}
+
+/**
  * `Handler<Row, U>` handles effects in `Row` and returns a value of type `U`.
  * It distributes over `Row` i.e. `Handler<X | Y, U> = Handler<X, U> | Handler<Y, U>`
  */
@@ -112,45 +151,6 @@ export function run<Row extends EffectId, T, U>(
     }
   };
   return loop();
-}
-
-/**
- * Maps the return value of the computation.
- * @param comp A computation.
- * @param func A function that maps the return value of the computation.
- * @returns A computation that returns the value mapped by `func`.
- */
-export function* map<Row extends EffectId, T, U>(
-  comp: Effectful<Row, T>,
-  func: (value: T) => U,
-): Effectful<Row, U> {
-  const value = yield* comp;
-  return func(value);
-}
-
-/**
- * Creates a computation that does not perform any effect and returns the given value.
- * @param value The value that the compuation returns.
- * @returns A new computation.
- */
-// eslint-disable-next-line require-yield
-export function* pure<Row extends EffectId, T>(value: T): Effectful<Row, T> {
-  return value;
-}
-
-/**
- * Composes two computations sequentially.
- * @param comp A computation.
- * @param func A function that takes the return value of the first computation and returns a
- * subsequent computation.
- * @returns A composed computation.
- */
-export function* bind<Row extends EffectId, T, U>(
-  comp: Effectful<Row, T>,
-  func: (value: T) => Effectful<Row, U>,
-): Effectful<Row, U> {
-  const value = yield* comp;
-  return yield* func(value);
 }
 
 /**
