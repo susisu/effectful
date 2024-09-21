@@ -147,27 +147,25 @@ export function run<Row extends EffectId, T, U>(
 }
 
 /**
- * Handles a subset of effects performed by a computation.
+ * Re-interprets a subset of the effects performed by a computation.
  * @param comp A computation.
- * @param ret A function that handles the return value of the computation.
  * @param handlers A set of effect handlers that handles effects performed in the computation.
  * @returns A modified computation.
  */
-export function handle<Row extends EffectId, SubRow extends Row, T, U>(
+export function* interpose<Row extends EffectId, SubRow extends Row, T>(
   comp: Effectful<Row, T>,
-  ret: (value: T) => Effectful<Exclude<Row, SubRow>, U>,
-  handlers: Handlers<SubRow, Effectful<Exclude<Row, SubRow>, U>>,
-): Effectful<Exclude<Row, SubRow>, U> {
+  handlers: Handlers<SubRow, Effectful<Exclude<Row, SubRow>, T>>,
+): Effectful<Exclude<Row, SubRow>, T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loop = (value?: any): Effectful<Exclude<Row, SubRow>, U> => {
+  const loop = (value?: any): Effectful<Exclude<Row, SubRow>, T> => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = comp.next(value);
     if (res.done) {
-      return ret(res.value);
+      return pure(res.value);
     } else {
       let resumed = false;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resume = (value: any): Effectful<Exclude<Row, SubRow>, U> => {
+      const resume = (value: any): Effectful<Exclude<Row, SubRow>, T> => {
         if (resumed) {
           throw new Error("resume cannot be called more than once");
         }
@@ -189,5 +187,5 @@ export function handle<Row extends EffectId, SubRow extends Row, T, U>(
       }
     }
   };
-  return loop();
+  return yield* loop();
 }

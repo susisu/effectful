@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Effectful } from ".";
-import { perform, map, pure, bind, run, handle } from ".";
+import { perform, map, pure, bind, run, interpose } from ".";
 
 declare module "." {
   interface EffectRegistry<T> {
@@ -77,22 +77,22 @@ describe("bind", () => {
   });
 });
 
-describe("handle", () => {
+describe("interpose", () => {
   function* main(): Effectful<"index.test/identity" | "index.test/call", number> {
-    const x = yield* perform<"index.test/identity", number>({
-      id: "index.test/identity",
-      data: 42,
-    });
-    const y = yield* perform<"index.test/call", number>({
+    const x = yield* perform<"index.test/call", number>({
       id: "index.test/call",
-      data: () => 2,
+      data: () => 42,
+    });
+    const y = yield* perform<"index.test/identity", number>({
+      id: "index.test/identity",
+      data: 2,
     });
     return x * y;
   }
 
-  it("handles a subset of effects", () => {
-    const comp = handle(main(), (x) => pure(x), {
-      "index.test/call": (eff, resume) => bind(pure(eff.data()), resume),
+  it("re-interprets a subset of effects", () => {
+    const comp = interpose(main(), {
+      "index.test/call": (eff, resume) => resume(eff.data()),
     });
     const res = run(comp, (x) => x, {
       "index.test/identity": (eff, resume) => resume(eff.data),
@@ -101,10 +101,10 @@ describe("handle", () => {
   });
 
   it("throws if resume is called more than once", () => {
-    const comp = handle(main(), (x) => pure(x), {
+    const comp = interpose(main(), {
       "index.test/call": (eff, resume) => {
         resume(eff.data());
-        return bind(pure(eff.data()), resume);
+        return resume(eff.data());
       },
     });
     expect(() => {
