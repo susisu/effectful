@@ -16,7 +16,7 @@ pnpm add @susisu/effectful
 ``` ts
 // 1. Register effects by augmenting `EffectRegistry<T>`.
 
-declare module "." {
+declare module "@susisu/effectful" {
   interface EffectRegistry<T> {
     // Reads contents of a file
     read: {
@@ -36,11 +36,11 @@ declare module "." {
   }
 }
 
-import type { Eff } from "@susisu/effectful";
-import { perform } from "@susisu/effectful";
-
 // 2. Define effect constructors (more accurately, atomic computations) for convenience.
 // `Eff<Row, T>` is the type of a compuation that performs effects in `Row` and returns `T`.
+
+import type { Eff } from "@susisu/effectful";
+import { perform } from "@susisu/effectful";
 
 function read(filename: string): Eff<"read", string> {
   return perform({
