@@ -147,12 +147,12 @@ export function run<Row extends EffectId, T, U>(
 }
 
 /**
- * Re-interprets a subset of the effects performed by a computation.
+ * Interprets a subset of the effects performed by a computation.
  * @param comp A computation.
  * @param handlers A set of effect handlers that handles effects performed in the computation.
  * @returns A modified computation.
  */
-export function* interpose<RowA extends EffectId, RowB extends EffectId, T>(
+export function* interpret<RowA extends EffectId, RowB extends EffectId, T>(
   comp: Effectful<RowA | RowB, T>,
   handlers: Handlers<RowA, Effectful<RowB, T>>,
 ): Effectful<RowB, T> {

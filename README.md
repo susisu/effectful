@@ -91,11 +91,11 @@ function* main(): Eff<"read" | "print", void> {
 // 4. Write interpreters.
 
 import type { EffectId } from "@susisu/effectful";
-import { interpose, run } from "@susisu/effectful";
+import { interpret, run } from "@susisu/effectful";
 import { readFile } from "fs/promises";
 
 function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff<Row | "async", T> {
-  return interpose<"read", Row | "async", T>(comp, {
+  return interpret<"read", Row | "async", T>(comp, {
     *read(eff, resume) {
       const contents = yield* async(readFile(eff.data.filename, "utf-8"));
       return yield* resume(eff.data.ev(contents));
@@ -104,7 +104,7 @@ function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff
 }
 
 function interpretPrint<Row extends EffectId, T>(comp: Eff<Row | "print", T>): Eff<Row, T> {
-  return interpose<"print", Row, T>(comp, {
+  return interpret<"print", Row, T>(comp, {
     *print(eff, resume) {
       console.log(eff.data.message);
       return yield* resume(eff.data.ev(undefined));

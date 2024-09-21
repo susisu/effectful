@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Effectful } from ".";
-import { perform, map, pure, bind, run, interpose } from ".";
+import { perform, map, pure, bind, run, interpret } from ".";
 
 declare module "." {
   interface EffectRegistry<T> {
@@ -94,7 +94,7 @@ describe("run", () => {
   });
 });
 
-describe("interpose", () => {
+describe("interpret", () => {
   function* main(): Effectful<"index.test/identity" | "index.test/call", number> {
     const x = yield* identity(1);
     const y = yield* call(() => 2);
@@ -104,7 +104,7 @@ describe("interpose", () => {
   }
 
   it("re-interprets a subset of effects", () => {
-    const comp = interpose<"index.test/call", "index.test/identity", number>(main(), {
+    const comp = interpret<"index.test/call", "index.test/identity", number>(main(), {
       *"index.test/call"(eff, resume) {
         const v = yield* identity(eff.data());
         return yield* resume(v);
@@ -119,7 +119,7 @@ describe("interpose", () => {
   });
 
   it("throws if resume is called more than once", () => {
-    const comp = interpose<"index.test/call", "index.test/identity", number>(main(), {
+    const comp = interpret<"index.test/call", "index.test/identity", number>(main(), {
       *"index.test/call"(eff, resume) {
         yield* resume(eff.data());
         return yield* resume(eff.data());
