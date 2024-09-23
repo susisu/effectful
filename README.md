@@ -20,7 +20,7 @@ declare module "@susisu/effectful" {
   interface EffectRegistry<T> {
     // Reads contents of a file
     read: {
-      // constrains `T` = `string`
+      // Constrains `T` = `string`
       constraint: (x: string) => T;
       filename: string;
     };
@@ -98,7 +98,7 @@ function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff
   return interpret<"read", Row | "async", T>(comp, {
     *read(eff, resume) {
       const contents = yield* async(readFile(eff.data.filename, "utf-8"));
-      // Use `constraint` to pass `contents` (which is a `string`) `resume` (which takes a value of type `T`)
+      // Use `constraint` to pass `contents` (which is a `string`) to `resume` (which takes a value of type `T`)
       return yield* resume(eff.data.constraint(contents));
     },
   });
