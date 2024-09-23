@@ -2,12 +2,8 @@ import { config } from "@susisu/eslint-config";
 import vitestPlugin from "@vitest/eslint-plugin";
 import globals from "globals";
 
-export default config({}, [
-  {
-    plugins: {
-      vitest: vitestPlugin,
-    },
-  },
+export default config({ tsconfigRootDir: import.meta.dirname }, [
+  {},
   {
     files: ["src/**/*.ts"],
     languageOptions: {
@@ -18,10 +14,8 @@ export default config({}, [
   },
   {
     files: ["src/**/*.test.ts"],
-    languageOptions: {
-      globals: {
-        ...globals.node,
-      },
+    plugins: {
+      vitest: vitestPlugin,
     },
     rules: {
       ...vitestPlugin.configs.recommended.rules,
