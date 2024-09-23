@@ -20,14 +20,14 @@ declare module "@susisu/effectful" {
   interface EffectRegistry<T> {
     // Reads contents of a file
     read: {
+      // constrains `T` = `string`
+      constraint: (x: string) => T;
       filename: string;
-      // `ev` is short for "evidence" and it constrains `T` = `string`
-      ev: (x: string) => T;
     };
     // Prints a message
     print: {
+      constraint: (x: void) => T;
       message: string;
-      ev: (x: void) => T;
     };
     // Waits for a promise
     async: {
@@ -48,9 +48,9 @@ function read(filename: string): Eff<"read", string> {
     id: "read",
     // Property type in `EffectRegistry<T>`
     data: {
+      // `constraint` should be an identity function
+      constraint: (x) => x,
       filename,
-      // `ev` should be an identity function
-      ev: (x) => x,
     },
   });
 }
@@ -59,8 +59,8 @@ function print(message: string): Eff<"print", void> {
   return perform({
     id: "print",
     data: {
+      constraint: (x) => x,
       message,
-      ev: (x) => x,
     },
   });
 }
@@ -98,7 +98,8 @@ function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff
   return interpret<"read", Row | "async", T>(comp, {
     *read(eff, resume) {
       const contents = yield* async(readFile(eff.data.filename, "utf-8"));
-      return yield* resume(eff.data.ev(contents));
+      // Use `constraint` to pass `contents` (which is a `string`) `resume` (which takes a value of type `T`)
+      return yield* resume(eff.data.constraint(contents));
     },
   });
 }
@@ -107,7 +108,7 @@ function interpretPrint<Row extends EffectId, T>(comp: Eff<Row | "print", T>): E
   return interpret<"print", Row, T>(comp, {
     *print(eff, resume) {
       console.log(eff.data.message);
-      return yield* resume(eff.data.ev(undefined));
+      return yield* resume(eff.data.constraint(undefined));
     },
   });
 }
