@@ -1,6 +1,6 @@
 // 1. Register effects by extending `EffectRegistry<T>`.
 
-declare module "@susisu/effectful" {
+declare module "../src/index.js" {
   interface EffectRegistry<T> {
     // Reads a file and returns its content as a string.
     read: {
@@ -18,8 +18,8 @@ declare module "@susisu/effectful" {
 // 2. Define effect constructors (more accurately, atomic computations) for convenience.
 // `Eff<T, Row>` is the type of compuations that perform effects in `Row` and return `T`.
 
-import type { Eff } from "@susisu/effectful";
-import { perform } from "@susisu/effectful";
+import type { Eff } from "../src/index.js";
+import { perform } from "../src/index.js";
 
 function read(filename: string): Eff<string, "read"> {
   return perform({
@@ -57,8 +57,8 @@ function* main(): Eff<void, "read" | "print"> {
 
 // 4. Write interpreters.
 
-import type { EffectKey } from "@susisu/effectful";
-import { interpret, waitFor } from "@susisu/effectful";
+import type { EffectKey } from "../src/index.js";
+import { interpret, waitFor } from "../src/index.js";
 import { readFile } from "fs/promises";
 
 // Translates `read` effect to `async` effect.
@@ -87,7 +87,7 @@ function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): 
 
 // 5. Run computations.
 
-import { runAsync } from "@susisu/effectful";
+import { runAsync } from "../src/index.js";
 
 runAsync(interpretPrint(interpretRead(main()))).catch((error: unknown) => {
   // eslint-disable-next-line no-console
