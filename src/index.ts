@@ -295,6 +295,7 @@ export function waitFor<T>(promise: Promise<T>): Effectful<"async", T> {
     data: promise,
   });
 }
+
 /**
  * Runs an async computation.
  * @param comp A computation to run.
