@@ -94,7 +94,6 @@ function interpretRead<Row extends EffectKey, T>(
 function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): Eff<T, Row> {
   return interpret<"print", Row, T>(comp, {
     *print(effect, resume) {
-      // eslint-disable-next-line no-console
       console.log(effect.data.message);
       return yield* resume(effect.data.constraint(undefined));
     },
@@ -105,10 +104,7 @@ function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): 
 
 import { runAsync } from "@susisu/effectful";
 
-runAsync(interpretPrint(interpretRead(main()))).catch((error: unknown) => {
-  // eslint-disable-next-line no-console
-  console.log(error);
-});
+runAsync(interpretPrint(interpretRead(main())));
 ```
 
 ## License
