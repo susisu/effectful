@@ -285,7 +285,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
       );
     }
     // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
-    return bind(perform(effect as Effect<RowB, any>), onResume);
+    return bind2(perform(effect as Effect<RowB, any>), onResume, onAbort);
   }
 
   return yield* onResume();

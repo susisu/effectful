@@ -250,12 +250,17 @@ describe("run", () => {
 
 describe("interpret", () => {
   function* main(): Effectful<"test/number" | "test/string", string> {
-    const x = yield* number(3);
+    let x;
+    try {
+      x = yield* number(3);
+    } catch {
+      x = 1;
+    }
     const y = yield* string("A");
     return y.repeat(x);
   }
 
-  it("translates some effects to other effects", () => {
+  it("allow handlers to translate effects to other effects", () => {
     const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume) {
         const value = yield* identity(effect.data.value);
@@ -273,12 +278,38 @@ describe("interpret", () => {
         "test/identity"(effect, resume) {
           return resume(effect.data);
         },
-        "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+        "test/number"(_effect, _resume, abort) {
+          return abort(new Error("ERROR"));
         },
       },
     );
-    expect(res).toBe("AAA");
+    expect(res).toBe("A");
+  });
+
+  it("allow handlers to abort the computation", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      *"test/string"(_effect, _resume, abort) {
+        return yield* abort(new Error("ERROR FOO"));
+      },
+    });
+    expect(() =>
+      run(
+        comp,
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
+        },
+        {
+          "test/identity"(effect, resume) {
+            return resume(effect.data);
+          },
+          "test/number"(_effect, _resume, abort) {
+            return abort(new Error("ERROR BAR"));
+          },
+        },
+      ),
+    ).toThrowError("ERROR FOO");
   });
 
   it("throws if resume is called after the computation is resumed or aborted", () => {
@@ -297,8 +328,8 @@ describe("interpret", () => {
         "test/identity"(effect, resume) {
           return resume(effect.data);
         },
-        "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+        "test/number"(_effect, _resume, abort) {
+          return abort(new Error("ERROR"));
         },
       }),
     ).toThrowError("cannot resume; already resumed or aborted");
@@ -321,8 +352,8 @@ describe("interpret", () => {
         "test/identity"(effect, resume) {
           return resume(effect.data);
         },
-        "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+        "test/number"(_effect, _resume, abort) {
+          return abort(new Error("ERROR"));
         },
       }),
     ).toThrowError("cannot abort; already resumed or aborted");
