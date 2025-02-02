@@ -1,4 +1,6 @@
-// 1. Register effects by extending `EffectRegistry<T>`.
+// ### 1. Register effects
+
+// You can register effects by extending `EffectRegistry<T>`.
 
 declare module "../src/index.js" {
   interface EffectRegistry<T> {
@@ -15,8 +17,11 @@ declare module "../src/index.js" {
   }
 }
 
-// 2. Define effect constructors (more accurately, atomic computations) for convenience.
-// `Eff<T, Row>` is the type of compuations that perform effects in `Row` and return `T`.
+// ### 2. Define smart constructors for effects
+
+// This is for later convenience.
+// Here "smart constructors" are functions that construct atomic computations.
+// `Eff<T, Row>` is the type of compuations that perform effects in `Row` (a union type of effect keys) and return `T`.
 
 import type { Eff } from "../src/index.js";
 import { perform } from "../src/index.js";
@@ -41,7 +46,9 @@ function print(message: string): Eff<void, "print"> {
   });
 }
 
-// 3. Write effectful computations using generators.
+// ### 3. Write effectful computations
+
+// You can write effectful computations using generators, like async / await for Promises.
 
 function* getSize(filename: string): Eff<number, "read"> {
   // Use `yield*` to perform effects.
@@ -55,7 +62,9 @@ function* main(): Eff<void, "read" | "print"> {
   yield* print(`The file contains ${size} characters.`);
 }
 
-// 4. Write interpreters.
+// ### 4. Write interpreters
+
+// Write interpreters (or effect handlers) so that effects can take actual effect.
 
 import type { EffectKey } from "../src/index.js";
 import { interpret, waitFor } from "../src/index.js";
@@ -85,7 +94,9 @@ function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): 
   });
 }
 
-// 5. Run computations.
+// ### 5. Run computations
+
+// Run our `main` computation by interpreting the effects.
 
 import { runAsync } from "../src/index.js";
 
