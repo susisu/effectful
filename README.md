@@ -90,7 +90,7 @@ Write interpreters (or effect handlers) so that effects can take actual effect.
 
 ``` ts
 import type { EffectKey } from "@susisu/effectful";
-import { interpret, waitFor } from "@susisu/effectful";
+import { interpret, waitFor, bind } from "@susisu/effectful";
 import { readFile } from "fs/promises";
 
 // Translates `read` effect to `async` effect.
@@ -98,10 +98,14 @@ function interpretRead<Row extends EffectKey, T>(
   comp: Eff<T, Row | "read">,
 ): Eff<T, Row | "async"> {
   return interpret<"read", Row | "async", T>(comp, {
-    *read(effect, resume) {
-      const contents = yield* waitFor(readFile(effect.data.filename, "utf-8"));
-      // Use `constraint` to pass `contents` (which is a string) to `resume` (which takes `T`).
-      return yield* resume(effect.data.constraint(contents));
+    read(effect, resume, abort) {
+      // `bind` is a function that works like `Promise.prototype.then`.
+      return bind(
+        waitFor(readFile(effect.data.filename, "utf-8")),
+        // Use `constraint: (x: string) => S` to pass `contents: string` to `resume: (value: S) => ...`.
+        (contents) => resume(effect.data.constraint(contents)),
+        abort,
+      );
     },
   });
 }
@@ -109,9 +113,9 @@ function interpretRead<Row extends EffectKey, T>(
 // Interprets `print` effect as output to the console.
 function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): Eff<T, Row> {
   return interpret<"print", Row, T>(comp, {
-    *print(effect, resume) {
+    print(effect, resume) {
       console.log(effect.data.message);
-      return yield* resume(effect.data.constraint(undefined));
+      return resume(effect.data.constraint(undefined));
     },
   });
 }
