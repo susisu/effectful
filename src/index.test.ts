@@ -1,136 +1,301 @@
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect } from "vitest";
 import type { Effectful } from "./index.js";
-import { perform, map, pure, bind, run, interpret } from "./index.js";
+import { perform, map, pure, bind, abort, run, interpret } from "./index.js";
 
 declare module "./index.js" {
   interface EffectRegistry<T> {
-    "index.test/identity": T;
-    "index.test/call": () => T;
+    "test/identity": T;
+    "test/number": {
+      value: number;
+      constraint: (x: number) => T;
+    };
+    "test/string": {
+      value: string;
+      constraint: (x: string) => T;
+    };
   }
 }
 
-function identity<T>(value: T): Effectful<"index.test/identity", T> {
+function identity<T>(value: T): Effectful<"test/identity", T> {
   return perform({
-    id: "index.test/identity",
+    key: "test/identity",
     data: value,
   });
 }
 
-function call<T>(func: () => T): Effectful<"index.test/call", T> {
+function number(value: number): Effectful<"test/number", number> {
   return perform({
-    id: "index.test/call",
-    data: func,
+    key: "test/number",
+    data: {
+      value,
+      constraint: (x) => x,
+    },
   });
 }
 
+function string(value: string): Effectful<"test/string", string> {
+  return perform({
+    key: "test/string",
+    data: {
+      value,
+      constraint: (x) => x,
+    },
+  });
+}
+
+export function runSync<T>(comp: Effectful<never, T>): T {
+  return run(
+    comp,
+    (value) => value,
+    (error) => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    },
+    {},
+  );
+}
+
 describe("map", () => {
-  it("maps the return value of a computation", () => {
-    const comp = pure<never, number>(42);
-    const func = (x: number): string => x.toString();
-    const res = run(map(comp, func), (x) => x, {});
-    expect(res).toBe("42");
+  it("transforms the return value of a computation by a function", () => {
+    const comp = pure(6);
+    const func = (x: number): string => "A".repeat(x);
+    const res = runSync(map(comp, func));
+    expect(res).toBe("AAAAAA");
   });
 });
 
 describe("pure", () => {
-  it("creates a computation that returns the given value without performing any effect", () => {
-    const comp = pure<never, number>(42);
-    const res = run(comp, (x) => x, {});
+  it("creates a pure computation that returns the given value", () => {
+    const comp = pure(42);
+    const res = runSync(comp);
     expect(res).toBe(42);
   });
 });
 
 describe("bind", () => {
   it("composes two computations sequentially", () => {
-    const comp = pure<never, number>(42);
-    const func = (x: number): Effectful<never, string> => pure(x.toString());
-    const res = run(bind(comp, func), (x) => x, {});
-    expect(res).toBe("42");
+    const comp = pure(6);
+    const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
+    const res = runSync(bind(comp, func));
+    expect(res).toBe("AAAAAA");
+  });
+});
+
+describe("abort", () => {
+  it("creates a computation that throws the given error", () => {
+    const comp = abort(new Error("ERROR"));
+    expect(() => runSync(comp)).toThrowError("ERROR");
   });
 });
 
 describe("run", () => {
-  function* main(): Effectful<"index.test/identity", number> {
-    const x = yield* identity(42);
-    return x;
+  function* main(): Effectful<"test/number" | "test/string", string> {
+    const x = yield* number(3);
+    const y = yield* string("A");
+    return y.repeat(x);
   }
 
-  it("runs an effectful computation", () => {
-    const res = run(main(), (x) => x, {
-      "index.test/identity"(eff, resume) {
-        return resume(eff.data);
+  it("allows handlers to resume the computation", () => {
+    const res = run(
+      main(),
+      (value) => value,
+      (error) => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw error;
       },
-    });
-    expect(res).toBe(42);
-  });
-
-  it("allows the return handler to modify the return value of the computation", () => {
-    const res = run(main(), (x) => x.toString(), {
-      "index.test/identity"(eff, resume) {
-        return resume(eff.data);
-      },
-    });
-    expect(res).toBe("42");
-  });
-
-  it("allows the effect handlers to abort the computation", () => {
-    const res = run(main(), (x) => x, {
-      "index.test/identity"(_eff, _resume) {
-        return 666;
-      },
-    });
-    expect(res).toBe(666);
-  });
-
-  it("throws if resume is called more than once", () => {
-    expect(() => {
-      run(main(), (x) => x, {
-        "index.test/identity"(eff, resume) {
-          resume(eff.data);
-          return resume(eff.data);
+      {
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value * 2));
         },
-      });
-    }).toThrow("resume cannot be called more than once");
+        "test/string"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+        },
+      },
+    );
+    expect(res).toBe("aaaaaa");
+  });
+
+  it("allows handlers to abort the computation", () => {
+    expect(() =>
+      run(
+        main(),
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
+        },
+        {
+          "test/number"(effect, resume) {
+            return resume(effect.data.constraint(effect.data.value));
+          },
+          "test/string"(_effect, _resume, abort) {
+            return abort(new Error("ERROR"));
+          },
+        },
+      ),
+    ).toThrowError("ERROR");
+  });
+
+  it("allows onReturn to modify the value returned by the computation", () => {
+    const res = run(
+      main(),
+      (value) => value.length,
+      (error) => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw error;
+      },
+      {
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+        "test/string"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+      },
+    );
+    expect(res).toBe(3);
+  });
+
+  it("allows onThrow to modify the error thrown by the computation", () => {
+    const res = run(
+      main(),
+      (value) => value,
+      (error) => {
+        if (error instanceof Error) {
+          return error.message;
+        } else {
+          return "";
+        }
+      },
+      {
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+        "test/string"(_effect, _resume, abort) {
+          return abort(new Error("ERROR"));
+        },
+      },
+    );
+    expect(res).toBe("ERROR");
+  });
+
+  it("throws if resume is called after the computation is resumed or aborted", () => {
+    const onThrow = vi.fn((error: unknown): never => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    });
+    expect(() =>
+      run(main(), (value) => value, onThrow, {
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+        "test/string"(effect, resume) {
+          resume(effect.data.constraint(effect.data.value));
+          return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+        },
+      }),
+    ).toThrowError("cannot resume; already resumed or aborted");
+    expect(onThrow).toHaveBeenCalledWith(new Error("cannot resume; already resumed or aborted"));
+  });
+
+  it("throws if abort is called after the computation is resumed or aborted", () => {
+    const onThrow = vi.fn((error: unknown): never => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    });
+    expect(() =>
+      run(main(), (value) => value, onThrow, {
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+        "test/string"(effect, resume, abort) {
+          resume(effect.data.constraint(effect.data.value));
+          return abort(new Error("ERROR"));
+        },
+      }),
+    ).toThrowError("cannot abort; already resumed or aborted");
+    expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
   });
 });
 
 describe("interpret", () => {
-  function* main(): Effectful<"index.test/identity" | "index.test/call", number> {
-    const x = yield* identity(1);
-    const y = yield* call(() => 2);
-    const z = yield* identity(4);
-    const w = yield* call(() => 8);
-    return x + y + z + w;
+  function* main(): Effectful<"test/number" | "test/string", string> {
+    const x = yield* number(3);
+    const y = yield* string("A");
+    return y.repeat(x);
   }
 
-  it("re-interprets a subset of effects", () => {
-    const comp = interpret<"index.test/call", "index.test/identity", number>(main(), {
-      *"index.test/call"(eff, resume) {
-        const v = yield* identity(eff.data());
-        return yield* resume(v);
+  it("translates some effects to other effects", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      *"test/string"(effect, resume) {
+        const value = yield* identity(effect.data.value);
+        return yield* resume(effect.data.constraint(value));
       },
     });
-    const res = run(comp, (x) => x, {
-      "index.test/identity"(eff, resume) {
-        return resume(eff.data);
+    const res = run(
+      comp,
+      (value) => value,
+      (error) => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw error;
       },
-    });
-    expect(res).toBe(15);
+      {
+        "test/identity"(effect, resume) {
+          return resume(effect.data);
+        },
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+      },
+    );
+    expect(res).toBe("AAA");
   });
 
-  it("throws if resume is called more than once", () => {
-    const comp = interpret<"index.test/call", "index.test/identity", number>(main(), {
-      *"index.test/call"(eff, resume) {
-        yield* resume(eff.data());
-        return yield* resume(eff.data());
+  it("throws if resume is called after the computation is resumed or aborted", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      *"test/string"(effect, resume) {
+        yield* resume(effect.data.constraint(effect.data.value));
+        return yield* resume(effect.data.constraint(effect.data.value.toLowerCase()));
       },
     });
-    expect(() => {
-      run(comp, (x) => x, {
-        "index.test/identity"(eff, resume) {
-          return resume(eff.data);
+    const onThrow = vi.fn((error: unknown): never => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    });
+    expect(() =>
+      run(comp, (value) => value, onThrow, {
+        "test/identity"(effect, resume) {
+          return resume(effect.data);
         },
-      });
-    }).toThrow("resume cannot be called more than once");
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+      }),
+    ).toThrowError("cannot resume; already resumed or aborted");
+    expect(onThrow).toHaveBeenCalledWith(new Error("cannot resume; already resumed or aborted"));
+  });
+
+  it("throws if abort is called after the computation is resumed or aborted", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      *"test/string"(effect, resume, abort) {
+        yield* resume(effect.data.constraint(effect.data.value));
+        return yield* abort(new Error("ERROR"));
+      },
+    });
+    const onThrow = vi.fn((error: unknown): never => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    });
+    expect(() =>
+      run(comp, (value) => value, onThrow, {
+        "test/identity"(effect, resume) {
+          return resume(effect.data);
+        },
+        "test/number"(effect, resume) {
+          return resume(effect.data.constraint(effect.data.value));
+        },
+      }),
+    ).toThrowError("cannot abort; already resumed or aborted");
+    expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
   });
 });

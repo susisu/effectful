@@ -1,56 +1,56 @@
 /**
- * `EffectRegistry<T>` is the global registry for effects.
- * Users can extend this interface to register custom effects.
- *
- * Each property registers an effect; the property name is the ID of the effect, and the property
- * type is the associated data type of the effect.
- * @param T The type that is returned when an effect is performed.
+ * `EffectRegistry<T>` is the global registry of effects.
+ * Users can extend this interface (by declaration merging) to register custom effects.
+ * Each key defines an effect, and the type associated to the key is the data type of the effect.
+ * @param T The type returned when an effect is performed.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface EffectRegistry<out T> {}
 
 /**
- * `EffectId` is the union of all the possible effect IDs.
+ * `EffectKey` is the union type containing all the keys in `EffectRegistry`,
+ * i.e. the upper bound for effect rows.
  */
-export type EffectId = keyof EffectRegistry<unknown>;
+export type EffectKey = keyof EffectRegistry<unknown>;
 
 /**
- * `EffectData<Row, T>` represents the data types associated to the effects in `Row`
+ * `EffectData<Key, T>` is the associated data type of effects.
+ * It distributes over `Key`, i.e. `EffectData<X | Y, T> = EffectData<X, T> | EffectData<Y, T>`.
  */
-export type EffectData<Row extends EffectId, T> = EffectRegistry<T>[Row];
+export type EffectData<Key extends EffectKey, T> = EffectRegistry<T>[Key];
 
 /**
- * `Effect<Row, T>` represents an effect that returns `T` when performed.
- * It distributes over `Row` i.e. `Effect<X | Y, T> = Effect<X, T> | Effect<Y, T>`
+ * `Effect<Key, T>` is the type of effects that return `T` when performed.
+ * It distributes over `Key`, i.e. `Effect<X | Y, T> = Effect<X, T> | Effect<Y, T>`.
  */
-export type Effect<Row extends EffectId, T> =
-  Row extends infer Id extends EffectId ?
+export type Effect<Key extends EffectKey, T> =
+  Key extends unknown ?
     Readonly<{
-      id: Row;
-      data: EffectData<Id, T>;
+      key: Key;
+      data: EffectData<Key, T>;
     }>
   : never;
 
 /**
- * `Effectful<Row, T>` represents an effectful computation that performs effects in `Row` and
- * returns `T`.
+ * `Effectful<Row, T>` is the type of effectful computations that return `T` and may perform
+ * effects declared in `Row`.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Effectful<Row extends EffectId, T> = Generator<Effect<Row, any>, T, any>;
+export type Effectful<Row extends EffectKey, T> = Generator<Effect<Row, any>, T, any>;
 
 /**
  * `Eff<Row, T>` is an alias for `Effectful<Row, T>`.
  */
-export type Eff<Row extends EffectId, T> = Effectful<Row, T>;
+export type Eff<Row extends EffectKey, T> = Effectful<Row, T>;
 
 /**
- * Creates an computation that performs a single effect.
- * @param eff An effect to perform.
- * @returns A new computation.
+ * Creates a computation that performs a signle effect.
+ * @param effect  An effect to perform.
+ * @returns A computation that performs the given effect.
  */
-export function* perform<Row extends EffectId, T>(eff: Effect<Row, T>): Effectful<Row, T> {
+export function* perform<Row extends EffectKey, T>(effect: Effect<Row, T>): Effectful<Row, T> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return yield eff;
+  return yield effect;
 }
 
 /**
@@ -59,7 +59,7 @@ export function* perform<Row extends EffectId, T>(eff: Effect<Row, T>): Effectfu
  * @param func A function that transforms the return value of the computation.
  * @returns A computation that returns the value transformed by the function.
  */
-export function* map<Row extends EffectId, T, U>(
+export function* map<Row extends EffectKey, T, U>(
   comp: Effectful<Row, T>,
   func: (value: T) => U,
 ): Effectful<Row, U> {
@@ -68,23 +68,23 @@ export function* map<Row extends EffectId, T, U>(
 }
 
 /**
- * Creates a computation that does not perform any effects.
- * @param value A value that is returned by the compuation.
- * @returns A new computation.
+ * Creates a pure computation that does not perform any effect and returns the given value.
+ * @param value A value to return.
+ * @returns A pure computation.
  */
 // eslint-disable-next-line require-yield
-export function* pure<Row extends EffectId, T>(value: T): Effectful<Row, T> {
+export function* pure<T>(value: T): Effectful<never, T> {
   return value;
 }
 
 /**
- * Composes two computations sequentially.
+ * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
  * @param comp A computation.
- * @param func A function that takes the return value of the first computation and returns a
+ * @param func A function that takes the return value of the first computation, and returns a
  * subsequent computation.
  * @returns A composed computation.
  */
-export function* bind<Row extends EffectId, T, U>(
+export function* bind<Row extends EffectKey, T, U>(
   comp: Effectful<Row, T>,
   func: (value: T) => Effectful<Row, U>,
 ): Effectful<Row, U> {
@@ -93,99 +93,175 @@ export function* bind<Row extends EffectId, T, U>(
 }
 
 /**
- * `Handler<Row, U>` handles (or interprets) effects in `Row` and returns a value of type `U`.
- * It distributes over `Row` i.e. `Handler<X | Y, U> = Handler<X, U> | Handler<Y, U>`
+ * Creates a computation that does not perform any effect and throws the given error.
+ * @param error An error to throw.
+ * @returns A computation.
  */
-export type Handler<Row extends EffectId, U> =
-  Row extends infer Id extends EffectId ? <T>(eff: Effect<Id, T>, resume: (value: T) => U) => U
-  : never;
-
-/**
- * `Handlers<Row, T>` is a set of effect handlers.
- */
-export type Handlers<Row extends EffectId, U> = Readonly<{
-  [Id in Row]: Handler<Id, U>;
-}>;
-
-/**
- * Runs an effectful computation by interpreting effects by handlers.
- * @param comp A computation to run.
- * @param ret A function that handles the return value of the computation.
- * @param handlers A set of effect handlers that handles effects performed in the computation.
- * @returns A value returned by `ret` if the computation has completed, or by `handlers` if it has
- * been aborted.
- */
-export function run<Row extends EffectId, T, U>(
-  comp: Effectful<Row, T>,
-  ret: (value: T) => U,
-  handlers: Handlers<Row, U>,
-): U {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loop = (value?: any): U => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const res = comp.next(value);
-    if (res.done) {
-      return ret(res.value);
-    } else {
-      let resumed = false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resume = (value: any): U => {
-        if (resumed) {
-          throw new Error("resume cannot be called more than once");
-        }
-        resumed = true;
-        return loop(value);
-      };
-      const eff = res.value;
-      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-      const handler = handlers[eff.id as Row];
-      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-      return handler(eff as never, resume);
-    }
-  };
-  return loop();
+// eslint-disable-next-line require-yield
+export function* abort(error: unknown): Effectful<never, never> {
+  // eslint-disable-next-line @typescript-eslint/only-throw-error
+  throw error;
 }
 
 /**
- * Interprets a subset of the effects performed by a computation.
- * @param comp A computation.
- * @param handlers A set of effect handlers that handles effects performed in the computation.
- * @returns A modified computation.
+ * `Handler<Key, T>` is the type of effect handlers.
+ * An effect handler receives effects performed in computations, and chooses whether to resume the
+ * computation (with a value) or abort it (with an error).
+ * It distributes over `Key`, i.e. `Handler<X | Y, T> = Handler<X, T> | Handler<Y, T>`.
  */
-export function* interpret<RowA extends EffectId, RowB extends EffectId, T>(
+export type Handler<Key extends EffectKey, T> =
+  Key extends unknown ?
+    <S>(effect: Effect<Key, S>, resume: (value: S) => T, abort: (error: unknown) => T) => T
+  : never;
+
+/**
+ * HandlerRecord<Row, T> is the type of sets of effect handlers.
+ */
+export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
+  [Key in Row]: Handler<Key, T>;
+}>;
+
+/**
+ * Runs an effectful computation.
+ * @param comp An effectful computation to run.
+ * @param onReturn A function that handles the value returned by the computation.
+ * @param onThrow A function that handles the error thrown by the computation.
+ * @param handlers A set of effect handlers to handle effects performed in the computation.
+ * @returns A value returned by `onReturn` or `onThrow`.
+ */
+export function run<Row extends EffectKey, T, U>(
+  comp: Effectful<Row, T>,
+  onReturn: (value: T) => U,
+  onThrow: (error: unknown) => U,
+  handlers: HandlerRecord<Row, U>,
+): U {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onResume(value?: any): U {
+    let res;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      res = comp.next(value);
+    } catch (err) {
+      return onThrow(err);
+    }
+    if (res.done) {
+      return onReturn(res.value);
+    }
+    return onYield(res.value);
+  }
+
+  function onAbort(error: unknown): U {
+    let res;
+    try {
+      res = comp.throw(error);
+    } catch (err) {
+      return onThrow(err);
+    }
+    if (res.done) {
+      return onReturn(res.value);
+    }
+    return onYield(res.value);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onYield(effect: Effect<Row, any>): U {
+    // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+    const handler = handlers[effect.key as Row];
+    let done = false;
+    return handler(
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+      effect as Effect<never, any>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (value: any) => {
+        if (done) {
+          return onThrow(new Error("cannot resume; already resumed or aborted"));
+        }
+        done = true;
+        return onResume(value);
+      },
+      (error: unknown) => {
+        if (done) {
+          return onThrow(new Error("cannot abort; already resumed or aborted"));
+        }
+        done = true;
+        return onAbort(error);
+      },
+    );
+  }
+
+  return onResume();
+}
+
+/**
+ * Interprets (or translates) a subset of effects performed in a computation.
+ * @param comp An effectful computation.
+ * @param handlers A set of effect handlers to interpret effects performed in the computation.
+ * @returns A new computation that performs only unhandled effects.
+ */
+export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
   comp: Effectful<RowA | RowB, T>,
-  handlers: Handlers<RowA, Effectful<RowB, T>>,
+  handlers: HandlerRecord<RowA, Effectful<RowB, T>>,
 ): Effectful<RowB, T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loop = (value?: any): Effectful<RowB, T> => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const res = comp.next(value);
+  function onResume(value?: any): Effectful<RowB, T> {
+    let res;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      res = comp.next(value);
+    } catch (err) {
+      return abort(err);
+    }
     if (res.done) {
       return pure(res.value);
-    } else {
-      let resumed = false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resume = (value: any): Effectful<RowB, T> => {
-        if (resumed) {
-          throw new Error("resume cannot be called more than once");
-        }
-        resumed = true;
-        return loop(value);
-      };
-      const eff = res.value;
-      // `eff.id in handlers` does not always imply `eff.id: RowA` because of subtyping, but here we
-      // assume so for convenience.
-      // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
-      if (eff.id in handlers) {
-        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-        const handler = handlers[eff.id as RowA];
-        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
-        return handler(eff as never, resume);
-      } else {
-        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
-        return bind(perform(eff as Effect<RowB, any>), resume);
-      }
     }
-  };
-  return yield* loop();
+    return onYield(res.value);
+  }
+
+  function onAbort(error: unknown): Effectful<RowB, T> {
+    let res;
+    try {
+      res = comp.throw(error);
+    } catch (err) {
+      return abort(err);
+    }
+    if (res.done) {
+      return pure(res.value);
+    }
+    return onYield(res.value);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onYield(effect: Effect<RowA | RowB, any>): Effectful<RowB, T> {
+    // NOTE: `eff.key in handlers` does not always imply `eff.key: RowA` because of subtyping,
+    // but we assume so here for convenience.
+    // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
+    if (effect.key in handlers) {
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+      const handler = handlers[effect.key as RowA];
+      let done = false;
+      return handler(
+        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+        effect as Effect<never, any>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (value: any) => {
+          if (done) {
+            return abort(new Error("cannot resume; already resumed or aborted"));
+          }
+          done = true;
+          return onResume(value);
+        },
+        (error: unknown) => {
+          if (done) {
+            return abort(new Error("cannot abort; already resumed or aborted"));
+          }
+          done = true;
+          return onAbort(error);
+        },
+      );
+    }
+    // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+    return bind(perform(effect as Effect<RowB, any>), onResume);
+  }
+
+  return yield* onResume();
 }
