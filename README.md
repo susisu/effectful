@@ -14,117 +14,100 @@ pnpm add @susisu/effectful
 ## Example
 
 ``` ts
-// 1. Register effects by augmenting `EffectRegistry<T>`.
+// 1. Register effects by extending `EffectRegistry<T>`.
 
 declare module "@susisu/effectful" {
   interface EffectRegistry<T> {
-    // Reads contents of a file
+    // Reads a file and returns its content as a string.
     read: {
-      // Constrains `T` = `string`
-      constraint: (x: string) => T;
       filename: string;
+      constraint: (x: string) => T; // constrains `T = string`
     };
-    // Prints a message
+    // Prints a message and returns void.
     print: {
-      constraint: (x: void) => T;
       message: string;
-    };
-    // Waits for a promise
-    async: {
-      promise: Promise<T>;
+      constraint: (x: void) => T; // constrains `T = void`
     };
   }
 }
 
 // 2. Define effect constructors (more accurately, atomic computations) for convenience.
-// `Eff<Row, T>` is the type of a compuation that performs effects in `Row` and returns `T`.
+// `Eff<T, Row>` is the type of compuations that perform effects in `Row` and return `T`.
 
 import type { Eff } from "@susisu/effectful";
 import { perform } from "@susisu/effectful";
 
-function read(filename: string): Eff<"read", string> {
+function read(filename: string): Eff<string, "read"> {
   return perform({
-    // Property name in `EffectRegistry<T>`
-    id: "read",
-    // Property type in `EffectRegistry<T>`
+    key: "read",
     data: {
-      // `constraint` should be an identity function
-      constraint: (x) => x,
       filename,
+      constraint: (x) => x, // `constraint` should be an identity function
     },
   });
 }
 
-function print(message: string): Eff<"print", void> {
+function print(message: string): Eff<void, "print"> {
   return perform({
-    id: "print",
+    key: "print",
     data: {
-      constraint: (x) => x,
       message,
+      constraint: (x) => x,
     },
   });
 }
 
-function async<T>(promise: Promise<T>): Eff<"async", T> {
-  return perform({
-    id: "async",
-    data: {
-      promise,
-    },
-  });
-}
+// 3. Write effectful computations using generators.
 
-// 3. Write complex computations using generators.
-
-function* getSize(filename: string): Eff<"read", number> {
-  // Use `yield*` to perform effects
+function* getSize(filename: string): Eff<number, "read"> {
+  // Use `yield*` to perform effects.
   const contents = yield* read(filename);
   return contents.length;
 }
 
-function* main(): Eff<"read" | "print", void> {
-  // `yield*` can also be used to compose computations
-  const size = yield* getSize("./input.txt");
-  yield* print(`The file contains ${size} characters!`);
+function* main(): Eff<void, "read" | "print"> {
+  // `yield*` can also be used to compose computations.
+  const size = yield* getSize("./examples/input.txt");
+  yield* print(`The file contains ${size} characters.`);
 }
 
 // 4. Write interpreters.
 
-import type { EffectId } from "@susisu/effectful";
-import { interpret, run } from "@susisu/effectful";
+import type { EffectKey } from "@susisu/effectful";
+import { interpret, waitFor } from "@susisu/effectful";
 import { readFile } from "fs/promises";
 
-function interpretRead<Row extends EffectId, T>(comp: Eff<Row | "read", T>): Eff<Row | "async", T> {
+// Translates `read` effect to `async` effect.
+function interpretRead<Row extends EffectKey, T>(
+  comp: Eff<T, Row | "read">,
+): Eff<T, Row | "async"> {
   return interpret<"read", Row | "async", T>(comp, {
-    *read(eff, resume) {
-      const contents = yield* async(readFile(eff.data.filename, "utf-8"));
-      // Use `constraint` to pass `contents` (which is a `string`) to `resume` (which takes a value of type `T`)
-      return yield* resume(eff.data.constraint(contents));
+    *read(effect, resume) {
+      const contents = yield* waitFor(readFile(effect.data.filename, "utf-8"));
+      // Use `constraint` to pass `contents` (which is a string) to `resume` (which takes `T`).
+      return yield* resume(effect.data.constraint(contents));
     },
   });
 }
 
-function interpretPrint<Row extends EffectId, T>(comp: Eff<Row | "print", T>): Eff<Row, T> {
+// Interprets `print` effect as output to the console.
+function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): Eff<T, Row> {
   return interpret<"print", Row, T>(comp, {
-    *print(eff, resume) {
-      console.log(eff.data.message);
-      return yield* resume(eff.data.constraint(undefined));
-    },
-  });
-}
-
-function runAsync<T>(comp: Eff<"async", T>): Promise<T> {
-  return run(comp, (x) => Promise.resolve(x), {
-    async(eff, resume) {
-      return eff.data.promise.then(resume);
+    *print(effect, resume) {
+      // eslint-disable-next-line no-console
+      console.log(effect.data.message);
+      return yield* resume(effect.data.constraint(undefined));
     },
   });
 }
 
 // 5. Run computations.
 
-runAsync(interpretPrint(interpretRead(main()))).catch((err) => {
-  console.error(err);
+import { runAsync } from "@susisu/effectful";
+
+runAsync(interpretPrint(interpretRead(main()))).catch((error: unknown) => {
+  // eslint-disable-next-line no-console
+  console.log(error);
 });
 ```
 
@@ -135,8 +118,3 @@ runAsync(interpretPrint(interpretRead(main()))).catch((err) => {
 ## Author
 
 Susisu ([GitHub](https://github.com/susisu), [Twitter](https://twitter.com/susisu2413))
-
-## Prior art
-
-- [briancavalier/fx-ts](https://github.com/briancavalier/fx-ts/)
-- [susisu/effects](https://github.com/susisu/effects)
