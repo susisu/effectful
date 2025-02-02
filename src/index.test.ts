@@ -1,6 +1,6 @@
 import { vi, describe, it, expect } from "vitest";
 import type { Effectful } from "./index.js";
-import { perform, map, pure, bind, abort, run, interpret } from "./index.js";
+import { perform, map, pure, bind, abort, run, runPure, interpret } from "./index.js";
 
 declare module "./index.js" {
   interface EffectRegistry<T> {
@@ -43,23 +43,11 @@ function string(value: string): Effectful<"test/string", string> {
   });
 }
 
-export function runSync<T>(comp: Effectful<never, T>): T {
-  return run(
-    comp,
-    (value) => value,
-    (error) => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    },
-    {},
-  );
-}
-
 describe("map", () => {
   it("transforms the return value of a computation by a function", () => {
     const comp = pure(6);
     const func = (x: number): string => "A".repeat(x);
-    const res = runSync(map(comp, func));
+    const res = runPure(map(comp, func));
     expect(res).toBe("AAAAAA");
   });
 });
@@ -67,7 +55,7 @@ describe("map", () => {
 describe("pure", () => {
   it("creates a pure computation that returns the given value", () => {
     const comp = pure(42);
-    const res = runSync(comp);
+    const res = runPure(comp);
     expect(res).toBe(42);
   });
 });
@@ -76,7 +64,7 @@ describe("bind", () => {
   it("composes two computations sequentially", () => {
     const comp = pure(6);
     const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
-    const res = runSync(bind(comp, func));
+    const res = runPure(bind(comp, func));
     expect(res).toBe("AAAAAA");
   });
 });
@@ -84,7 +72,7 @@ describe("bind", () => {
 describe("abort", () => {
   it("creates a computation that throws the given error", () => {
     const comp = abort(new Error("ERROR"));
-    expect(() => runSync(comp)).toThrowError("ERROR");
+    expect(() => runPure(comp)).toThrowError("ERROR");
   });
 });
 
@@ -215,6 +203,18 @@ describe("run", () => {
       }),
     ).toThrowError("cannot abort; already resumed or aborted");
     expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
+  });
+});
+
+describe("runPure", () => {
+  // eslint-disable-next-line require-yield
+  function* main(): Effectful<never, number> {
+    return 42;
+  }
+
+  it("runs a pure computation", () => {
+    const res = runPure(main());
+    expect(res).toBe(42);
   });
 });
 

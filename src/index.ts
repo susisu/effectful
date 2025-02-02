@@ -127,7 +127,7 @@ export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
  * @param onReturn A function that handles the value returned by the computation.
  * @param onThrow A function that handles the error thrown by the computation.
  * @param handlers A set of effect handlers to handle effects performed in the computation.
- * @returns A value returned by `onReturn` or `onThrow`.
+ * @returns The value returned by `onReturn` or `onThrow`.
  */
 export function run<Row extends EffectKey, T, U>(
   comp: Effectful<Row, T>,
@@ -190,6 +190,23 @@ export function run<Row extends EffectKey, T, U>(
   }
 
   return onResume();
+}
+
+/**
+ * Runs a pure computation.
+ * @param comp A computation to run.
+ * @returns The value returned by the computation.
+ */
+export function runPure<T>(comp: Effectful<never, T>): T {
+  return run(
+    comp,
+    (value) => value,
+    (error) => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    },
+    {},
+  );
 }
 
 /**
