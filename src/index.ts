@@ -91,21 +91,6 @@ export function* abort(error: unknown): Effectful<never, never> {
 
 /**
  * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
- * @param comp A computation.
- * @param func A function that takes the value returned by the first computation, and returns a
- * subsequent computation.
- * @returns A composed computation.
- */
-export function* bind<Row extends EffectKey, T, U>(
-  comp: Effectful<Row, T>,
-  func: (value: T) => Effectful<Row, U>,
-): Effectful<Row, U> {
-  const value = yield* comp;
-  return yield* func(value);
-}
-
-/**
- * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
  * It calls `onReturn` if the first computation returns, and calls `onThrow` if throws.
  * @param comp A computation.
  * @param onReturn A function that takes the value returned by the first computation, and returns a
@@ -114,16 +99,21 @@ export function* bind<Row extends EffectKey, T, U>(
  * subsequent computation.
  * @returns A composed computation.
  */
-export function* bind2<Row extends EffectKey, T, U>(
+export function* bind<Row extends EffectKey, T, U>(
   comp: Effectful<Row, T>,
   onReturn: (value: T) => Effectful<Row, U>,
-  onThrow: (error: unknown) => Effectful<Row, U>,
+  onThrow?: (error: unknown) => Effectful<Row, U>,
 ): Effectful<Row, U> {
   let value;
-  try {
+  if (onThrow) {
+    try {
+      value = yield* comp;
+    } catch (error) {
+      return yield* onThrow(error);
+    }
+  } else {
+    // short-circuit of onThrow = abort
     value = yield* comp;
-  } catch (error) {
-    return yield* onThrow(error);
   }
   return yield* onReturn(value);
 }
@@ -285,7 +275,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
       );
     }
     // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
-    return bind2(perform(effect as Effect<RowB, any>), onResume, onAbort);
+    return bind(perform(effect as Effect<RowB, any>), onResume, onAbort);
   }
 
   return yield* onResume();

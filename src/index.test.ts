@@ -6,7 +6,6 @@ import {
   pure,
   abort,
   bind,
-  bind2,
   run,
   interpret,
   runPure,
@@ -86,9 +85,13 @@ describe("bind", () => {
     const res = runPure(bind(comp, func));
     expect(res).toBe("AAAAAA");
   });
-});
 
-describe("bind2", () => {
+  it("throws if the first computation throws and `onThrows` is not given", () => {
+    const comp = abort(new Error("ERROR"));
+    const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
+    expect(() => runPure(bind(comp, func))).toThrowError("ERROR");
+  });
+
   it("calls `onReturn` branch if the first computation returns", () => {
     const comp = pure(6);
     const onReturn = (x: number): Effectful<never, string> => pure("A".repeat(x));
@@ -99,7 +102,7 @@ describe("bind2", () => {
         return pure("");
       }
     };
-    const res = runPure(bind2(comp, onReturn, onThrow));
+    const res = runPure(bind(comp, onReturn, onThrow));
     expect(res).toBe("AAAAAA");
   });
 
@@ -113,7 +116,7 @@ describe("bind2", () => {
         return pure("");
       }
     };
-    const res = runPure(bind2(comp, onReturn, onThrow));
+    const res = runPure(bind(comp, onReturn, onThrow));
     expect(res).toBe("ERROR");
   });
 });
