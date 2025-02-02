@@ -1,6 +1,17 @@
 import { vi, describe, it, expect } from "vitest";
 import type { Effectful } from "./index.js";
-import { perform, map, pure, bind, abort, run, runPure, interpret } from "./index.js";
+import {
+  perform,
+  map,
+  pure,
+  bind,
+  abort,
+  run,
+  interpret,
+  runPure,
+  waitFor,
+  runAsync,
+} from "./index.js";
 
 declare module "./index.js" {
   interface EffectRegistry<T> {
@@ -206,18 +217,6 @@ describe("run", () => {
   });
 });
 
-describe("runPure", () => {
-  // eslint-disable-next-line require-yield
-  function* main(): Effectful<never, number> {
-    return 42;
-  }
-
-  it("runs a pure computation", () => {
-    const res = runPure(main());
-    expect(res).toBe(42);
-  });
-});
-
 describe("interpret", () => {
   function* main(): Effectful<"test/number" | "test/string", string> {
     const x = yield* number(3);
@@ -297,5 +296,45 @@ describe("interpret", () => {
       }),
     ).toThrowError("cannot abort; already resumed or aborted");
     expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
+  });
+});
+
+describe("runPure", () => {
+  it("runs a pure computation", () => {
+    // eslint-disable-next-line require-yield
+    function* main(): Effectful<never, number> {
+      return 42;
+    }
+
+    const res = runPure(main());
+    expect(res).toBe(42);
+  });
+});
+
+describe("runAsync", () => {
+  it("runs an async computation", async () => {
+    function* main(): Effectful<"async", number> {
+      const x = yield* waitFor(Promise.resolve(42));
+      let y;
+      try {
+        y = yield* waitFor(Promise.reject<number>(new Error("ERROR")));
+      } catch {
+        y = 1;
+      }
+      return x + y;
+    }
+
+    const res = runAsync(main());
+    await expect(res).resolves.toBe(43);
+  });
+
+  it("rejects if a promise is rejected and not handled", async () => {
+    function* main(): Effectful<"async", number> {
+      const x = yield* waitFor(Promise.resolve(42));
+      const y = yield* waitFor(Promise.reject<number>(new Error("ERROR")));
+      return x + y;
+    }
+    const res = runAsync(main());
+    await expect(res).rejects.toThrowError("ERROR");
   });
 });

@@ -4,8 +4,9 @@
  * Each key defines an effect, and the type associated to the key is the data type of the effect.
  * @param T The type returned when an effect is performed.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface EffectRegistry<out T> {}
+export interface EffectRegistry<out T> {
+  async: Promise<T>;
+}
 
 /**
  * `EffectKey` is the union type containing all the keys in `EffectRegistry`,
@@ -193,23 +194,6 @@ export function run<Row extends EffectKey, T, U>(
 }
 
 /**
- * Runs a pure computation.
- * @param comp A computation to run.
- * @returns The value returned by the computation.
- */
-export function runPure<T>(comp: Effectful<never, T>): T {
-  return run(
-    comp,
-    (value) => value,
-    (error) => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    },
-    {},
-  );
-}
-
-/**
  * Interprets (or translates) a subset of effects performed in a computation.
  * @param comp An effectful computation.
  * @param handlers A set of effect handlers to interpret effects performed in the computation.
@@ -281,4 +265,51 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
   }
 
   return yield* onResume();
+}
+
+/**
+ * Runs a pure computation.
+ * @param comp A computation to run.
+ * @returns The value returned by the computation.
+ */
+export function runPure<T>(comp: Effectful<never, T>): T {
+  return run(
+    comp,
+    (value) => value,
+    (error) => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw error;
+    },
+    {},
+  );
+}
+
+/**
+ * Performs an async effect to wait for a promise.
+ * @param promise A promise to wait for.
+ * @returns A computation that performs an async effect.
+ */
+export function waitFor<T>(promise: Promise<T>): Effectful<"async", T> {
+  return perform({
+    key: "async",
+    data: promise,
+  });
+}
+/**
+ * Runs an async computation.
+ * @param comp A computation to run.
+ * @returns The value returned by the computation.
+ */
+export function runAsync<T>(comp: Effectful<"async", T>): Promise<T> {
+  return run(
+    comp,
+    (value) => Promise.resolve(value),
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+    (error) => Promise.reject(error),
+    {
+      async(effect, resume, abort) {
+        return effect.data.then(resume, abort);
+      },
+    },
+  );
 }
