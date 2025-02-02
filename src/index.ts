@@ -39,9 +39,9 @@ export type Effect<Key extends EffectKey, T> =
 export type Effectful<Row extends EffectKey, T> = Generator<Effect<Row, any>, T, any>;
 
 /**
- * `Eff<Row, T>` is an alias for `Effectful<Row, T>`.
+ * `Eff<T, Row>` is an alias for `Effectful<Row, T>`.
  */
-export type Eff<Row extends EffectKey, T> = Effectful<Row, T>;
+export type Eff<T, Row extends EffectKey = never> = Effectful<Row, T>;
 
 /**
  * Creates a computation that performs a signle effect.
