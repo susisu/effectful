@@ -79,9 +79,20 @@ export function* pure<T>(value: T): Effectful<never, T> {
 }
 
 /**
+ * Creates a computation that does not perform any effect and throws the given error.
+ * @param error An error to throw.
+ * @returns A computation.
+ */
+// eslint-disable-next-line require-yield
+export function* abort(error: unknown): Effectful<never, never> {
+  // eslint-disable-next-line @typescript-eslint/only-throw-error
+  throw error;
+}
+
+/**
  * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
  * @param comp A computation.
- * @param func A function that takes the return value of the first computation, and returns a
+ * @param func A function that takes the value returned by the first computation, and returns a
  * subsequent computation.
  * @returns A composed computation.
  */
@@ -94,14 +105,27 @@ export function* bind<Row extends EffectKey, T, U>(
 }
 
 /**
- * Creates a computation that does not perform any effect and throws the given error.
- * @param error An error to throw.
- * @returns A computation.
+ * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
+ * It calls `onReturn` if the first computation returns, and calls `onThrow` if throws.
+ * @param comp A computation.
+ * @param onReturn A function that takes the value returned by the first computation, and returns a
+ * subsequent computation.
+ * @param onThrow A function that takes the error thrown by the first computation, and returns a
+ * subsequent computation.
+ * @returns A composed computation.
  */
-// eslint-disable-next-line require-yield
-export function* abort(error: unknown): Effectful<never, never> {
-  // eslint-disable-next-line @typescript-eslint/only-throw-error
-  throw error;
+export function* bind2<Row extends EffectKey, T, U>(
+  comp: Effectful<Row, T>,
+  onReturn: (value: T) => Effectful<Row, U>,
+  onThrow: (error: unknown) => Effectful<Row, U>,
+): Effectful<Row, U> {
+  let value;
+  try {
+    value = yield* comp;
+  } catch (error) {
+    return yield* onThrow(error);
+  }
+  return yield* onReturn(value);
 }
 
 /**

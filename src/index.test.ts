@@ -4,8 +4,9 @@ import {
   perform,
   map,
   pure,
-  bind,
   abort,
+  bind,
+  bind2,
   run,
   interpret,
   runPure,
@@ -71,6 +72,13 @@ describe("pure", () => {
   });
 });
 
+describe("abort", () => {
+  it("creates a computation that throws the given error", () => {
+    const comp = abort(new Error("ERROR"));
+    expect(() => runPure(comp)).toThrowError("ERROR");
+  });
+});
+
 describe("bind", () => {
   it("composes two computations sequentially", () => {
     const comp = pure(6);
@@ -80,10 +88,33 @@ describe("bind", () => {
   });
 });
 
-describe("abort", () => {
-  it("creates a computation that throws the given error", () => {
+describe("bind2", () => {
+  it("calls `onReturn` branch if the first computation returns", () => {
+    const comp = pure(6);
+    const onReturn = (x: number): Effectful<never, string> => pure("A".repeat(x));
+    const onThrow = (error: unknown): Effectful<never, string> => {
+      if (error instanceof Error) {
+        return pure(error.message);
+      } else {
+        return pure("");
+      }
+    };
+    const res = runPure(bind2(comp, onReturn, onThrow));
+    expect(res).toBe("AAAAAA");
+  });
+
+  it("calls `onThrow` branch if the first computation throws", () => {
     const comp = abort(new Error("ERROR"));
-    expect(() => runPure(comp)).toThrowError("ERROR");
+    const onReturn = (x: number): Effectful<never, string> => pure("A".repeat(x));
+    const onThrow = (error: unknown): Effectful<never, string> => {
+      if (error instanceof Error) {
+        return pure(error.message);
+      } else {
+        return pure("");
+      }
+    };
+    const res = runPure(bind2(comp, onReturn, onThrow));
+    expect(res).toBe("ERROR");
   });
 });
 
