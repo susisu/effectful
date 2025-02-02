@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import type { Effectful } from ".";
-import { perform, map, pure, bind, run, interpret } from ".";
+import type { Effectful } from "./index.js";
+import { perform, map, pure, bind, run, interpret } from "./index.js";
 
-declare module "." {
+declare module "./index.js" {
   interface EffectRegistry<T> {
     "index.test/identity": T;
     "index.test/call": () => T;
