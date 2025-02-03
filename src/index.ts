@@ -189,14 +189,14 @@ export function run<Row extends EffectKey, T, U>(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (value: any) => {
         if (done) {
-          return onThrow(new Error("cannot resume; already resumed or aborted"));
+          throw new Error("cannot resume; already resumed or aborted");
         }
         done = true;
         return onResume(value);
       },
       (error: unknown) => {
         if (done) {
-          return onThrow(new Error("cannot abort; already resumed or aborted"));
+          throw new Error("cannot abort; already resumed or aborted");
         }
         done = true;
         return onAbort(error);
@@ -260,14 +260,14 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (value: any) => {
           if (done) {
-            return abort(new Error("cannot resume; already resumed or aborted"));
+            throw new Error("cannot resume; already resumed or aborted");
           }
           done = true;
           return onResume(value);
         },
         (error: unknown) => {
           if (done) {
-            return abort(new Error("cannot abort; already resumed or aborted"));
+            throw new Error("cannot abort; already resumed or aborted");
           }
           done = true;
           return onAbort(error);
