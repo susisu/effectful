@@ -307,10 +307,11 @@ export function runPure<T>(comp: Effectful<never, T>): T {
  * @param promise A promise to wait for.
  * @returns A computation that performs an async effect.
  */
-export function waitFor<T>(promise: Promise<T>): Effectful<"async", T> {
+export function waitFor<T>(promise: Promise<T>): Effectful<"async", Awaited<T>> {
   return perform({
     key: "async",
-    data: promise,
+    // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+    data: promise as Promise<Awaited<T>>,
   });
 }
 
@@ -319,7 +320,7 @@ export function waitFor<T>(promise: Promise<T>): Effectful<"async", T> {
  * @param comp A computation to run.
  * @returns The value returned by the computation.
  */
-export function runAsync<T>(comp: Effectful<"async", T>): Promise<T> {
+export function runAsync<T>(comp: Effectful<"async", T>): Promise<Awaited<T>> {
   return run(
     comp,
     (value) => Promise.resolve(value),
