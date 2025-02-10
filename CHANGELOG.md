@@ -1,3 +1,7 @@
+## 0.6.2 (2025-02-10)
+
+- Fix `waitFor` and `runAsync` to return awaited types
+
 ## 0.6.1 (2025-02-03)
 
 - Fix handling of errors thrown by effect handlers
