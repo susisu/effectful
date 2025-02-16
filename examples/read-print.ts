@@ -74,6 +74,8 @@ import { readFile } from "fs/promises";
 // eslint-disable-next-line func-style
 const interpretRead: Interpreter<"read", "async"> = function* (effect) {
   const content = yield* waitFor(readFile(effect.data.filename, "utf-8"));
+  // Here the type `effect` is `Effect<"read", S>`, so the return value must be of type `S`.
+  // You can use `constraint: (x: string) => S` to convert `content: string` to `S`.
   return effect.data.constraint(content);
 };
 
