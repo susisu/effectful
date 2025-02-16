@@ -64,47 +64,39 @@ function* main(): Eff<void, "read" | "print"> {
 
 // ### 4. Write interpreters
 
-// Write interpreters (or effect handlers) so that effects can take actual effect.
+// Write interpreters to translate effects to real-world ones.
 
-import type { EffectKey } from "../src/index.js";
-import { interpret, waitFor, bind } from "../src/index.js";
+import type { Interpreter } from "../src/index.js";
+import { waitFor } from "../src/index.js";
 import { readFile } from "fs/promises";
 
 // Translates `read` effect to `async` effect.
-function interpretRead<Row extends EffectKey, T>(
-  comp: Eff<T, Row | "read">,
-): Eff<T, Row | "async"> {
-  return interpret<"read", Row | "async", T>(comp, {
-    read(effect, resume, abort) {
-      // `bind` is a function that works like `Promise.prototype.then`.
-      return bind(
-        waitFor(readFile(effect.data.filename, "utf-8")),
-        // Use `constraint: (x: string) => S` to pass `contents: string` to `resume: (value: S) => ...`.
-        (contents) => resume(effect.data.constraint(contents)),
-        abort,
-      );
-    },
-  });
-}
+// eslint-disable-next-line func-style
+const interpretRead: Interpreter<"read", "async"> = function* (effect) {
+  const content = yield* waitFor(readFile(effect.data.filename, "utf-8"));
+  return effect.data.constraint(content);
+};
 
 // Interprets `print` effect as output to the console.
-function interpretPrint<Row extends EffectKey, T>(comp: Eff<T, Row | "print">): Eff<T, Row> {
-  return interpret<"print", Row, T>(comp, {
-    print(effect, resume) {
-      // eslint-disable-next-line no-console
-      console.log(effect.data.message);
-      return resume(effect.data.constraint(undefined));
-    },
-  });
-}
+// eslint-disable-next-line func-style, require-yield
+const interpretPrint: Interpreter<"print", never> = function* (effect) {
+  // eslint-disable-next-line no-console
+  console.log(effect.data.message);
+  return effect.data.constraint(undefined);
+};
 
 // ### 5. Run computations
 
-// Run our `main` computation by interpreting the effects.
+// Run our `main` computation with interpreters.
 
-import { runAsync } from "../src/index.js";
+import { interpret, runAsync } from "../src/index.js";
 
-runAsync(interpretPrint(interpretRead(main()))).catch((error: unknown) => {
+runAsync(
+  interpret<"read" | "print", "async", void>(main(), {
+    read: interpretRead,
+    print: interpretPrint,
+  }),
+).catch((error: unknown) => {
   // eslint-disable-next-line no-console
-  console.log(error);
+  console.error(error);
 });
