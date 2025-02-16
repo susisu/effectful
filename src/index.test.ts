@@ -7,6 +7,7 @@ import {
   abort,
   bind,
   run,
+  handle,
   interpret,
   runPure,
   waitFor,
@@ -251,7 +252,7 @@ describe("run", () => {
   });
 });
 
-describe("interpret", () => {
+describe("handle", () => {
   function* main(): Effectful<"test/number" | "test/string", string> {
     let x;
     try {
@@ -264,7 +265,7 @@ describe("interpret", () => {
   }
 
   it("allow handlers to translate effects to other effects", () => {
-    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+    const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume) {
         const value = yield* identity(effect.data.value);
         return yield* resume(effect.data.constraint(value));
@@ -290,7 +291,7 @@ describe("interpret", () => {
   });
 
   it("allow handlers to abort the computation", () => {
-    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+    const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(_effect, _resume, abort) {
         return yield* abort(new Error("ERROR FOO"));
       },
@@ -316,7 +317,7 @@ describe("interpret", () => {
   });
 
   it("throws if resume is called after the computation is resumed or aborted", () => {
-    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+    const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume) {
         yield* resume(effect.data.constraint(effect.data.value));
         return yield* resume(effect.data.constraint(effect.data.value.toLowerCase()));
@@ -340,7 +341,7 @@ describe("interpret", () => {
   });
 
   it("throws if abort is called after the computation is resumed or aborted", () => {
-    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+    const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume, abort) {
         yield* resume(effect.data.constraint(effect.data.value));
         return yield* abort(new Error("ERROR"));
@@ -361,6 +362,72 @@ describe("interpret", () => {
       }),
     ).toThrowError("cannot abort; already resumed or aborted");
     expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
+  });
+});
+
+describe("interpret", () => {
+  function* main(): Effectful<"test/number" | "test/string", string> {
+    let x;
+    try {
+      x = yield* number(3);
+    } catch {
+      x = 1;
+    }
+    const y = yield* string("A");
+    return y.repeat(x);
+  }
+
+  it("allow interpreters to translate effects to other effects", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      *"test/string"(effect) {
+        const value = yield* identity(effect.data.value);
+        return effect.data.constraint(value);
+      },
+    });
+    const res = run(
+      comp,
+      (value) => value,
+      (error) => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw error;
+      },
+      {
+        "test/identity"(effect, resume) {
+          return resume(effect.data);
+        },
+        "test/number"(_effect, _resume, abort) {
+          return abort(new Error("ERROR"));
+        },
+      },
+    );
+    expect(res).toBe("A");
+  });
+
+  it("allow interpreters to abort the computation", () => {
+    const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
+      // eslint-disable-next-line require-yield
+      *"test/string"() {
+        throw new Error("ERROR FOO");
+      },
+    });
+    expect(() =>
+      run(
+        comp,
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
+        },
+        {
+          "test/identity"(effect, resume) {
+            return resume(effect.data);
+          },
+          "test/number"(_effect, _resume, abort) {
+            return abort(new Error("ERROR BAR"));
+          },
+        },
+      ),
+    ).toThrowError("ERROR FOO");
   });
 });
 

@@ -120,8 +120,8 @@ export function* bind<Row extends EffectKey, T, U>(
 
 /**
  * `Handler<Key, T>` is the type of effect handlers.
- * An effect handler receives effects performed in computations, and chooses whether to resume the
- * computation (with a value) or abort it (with an error).
+ * An effect handler takes an effect performed by a computation, handles it, and determines whether to resume (with a
+ * value) or abort (with an error) the computation.
  * It distributes over `Key`, i.e. `Handler<X | Y, T> = Handler<X, T> | Handler<Y, T>`.
  */
 export type Handler<Key extends EffectKey, T> =
@@ -141,7 +141,7 @@ export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
  * @param comp An effectful computation to run.
  * @param onReturn A function that handles the value returned by the computation.
  * @param onThrow A function that handles the error thrown by the computation.
- * @param handlers A set of effect handlers to handle effects performed in the computation.
+ * @param handlers A set of effect handlers to handle effects performed by the computation.
  * @returns The value returned by `onReturn` or `onThrow`.
  */
 export function run<Row extends EffectKey, T, U>(
@@ -212,12 +212,12 @@ export function run<Row extends EffectKey, T, U>(
 }
 
 /**
- * Interprets (or translates) a subset of effects performed in a computation.
+ * Handles a subset of effects performed by a computation.
  * @param comp An effectful computation.
- * @param handlers A set of effect handlers to interpret effects performed in the computation.
- * @returns A new computation that performs only unhandled effects.
+ * @param handlers A set of effect handlers to handle effects performed by the computation.
+ * @returns A wrapped computation.
  */
-export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
+export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
   comp: Effectful<RowA | RowB, T>,
   handlers: HandlerRecord<RowA, Effectful<RowB, T>>,
 ): Effectful<RowB, T> {
@@ -277,6 +277,78 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
           return onAbort(error);
         },
       );
+    }
+    // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+    return bind(perform(effect as Effect<RowB, any>), onResume, onAbort);
+  }
+
+  return yield* onResume();
+}
+
+/**
+ * `Interpreter<Key, Row>` is the type of interpreters.
+ * An interpreter takes an effect effects performed by a computation, handles it by (optionally) tralnslating to other
+ * effects, and returns or throws.
+ * It distributes over `Key`, i.e. `Interpreter<X | Y, Row> = Interpreter<X, Row> | Interpreter<Y, Row>`.
+ */
+export type Interpreter<Key extends EffectKey, Row extends EffectKey> =
+  Key extends unknown ? <S>(effect: Effect<Key, S>) => Effectful<Row, S> : never;
+
+/**
+ * InterpreterRecord<Row, T> is the type of sets of interpreters.
+ */
+export type InterpreterRecord<RowA extends EffectKey, RowB extends EffectKey> = Readonly<{
+  [Key in RowA]: Interpreter<Key, RowB>;
+}>;
+
+/**
+ * Interprets a subset of effects performed by a computation.
+ * @param comp An effectful computation.
+ * @param interpreters A set of interpreters to translate effects performed by the computation.
+ * @returns A wrapped computation.
+ */
+export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
+  comp: Effectful<RowA | RowB, T>,
+  interpreters: InterpreterRecord<RowA, RowB>,
+): Effectful<RowB, T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onResume(value?: any): Effectful<RowB, T> {
+    let res;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      res = comp.next(value);
+    } catch (err) {
+      return abort(err);
+    }
+    if (res.done) {
+      return pure(res.value);
+    }
+    return onYield(res.value);
+  }
+
+  function onAbort(error: unknown): Effectful<RowB, T> {
+    let res;
+    try {
+      res = comp.throw(error);
+    } catch (err) {
+      return abort(err);
+    }
+    if (res.done) {
+      return pure(res.value);
+    }
+    return onYield(res.value);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onYield(effect: Effect<RowA | RowB, any>): Effectful<RowB, T> {
+    // NOTE: `eff.key in interpreters` does not always imply `eff.key: RowA` because of subtyping,
+    // but we assume so here for convenience.
+    // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
+    if (effect.key in interpreters) {
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
+      const interpreter = interpreters[effect.key as RowA];
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+      return bind(interpreter(effect as Effect<never, any>), onResume, onAbort);
     }
     // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
     return bind(perform(effect as Effect<RowB, any>), onResume, onAbort);
