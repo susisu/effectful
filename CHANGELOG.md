@@ -1,3 +1,9 @@
+## 0.7.0 (2025-02-16)
+
+- Simplify the `interpret` function
+- Fix `onThrow` (the thrid argument of `run`) not to be called twice
+- **BREAKING** The previous `interpret` function has been renamed to `handle`
+
 ## 0.6.2 (2025-02-10)
 
 - Fix `waitFor` and `runAsync` to return awaited types
