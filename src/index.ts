@@ -35,6 +35,11 @@ export type Effect<Key extends EffectKey, T> =
 /**
  * `Effectful<Row, T>` is the type of effectful computations that return `T` and may perform
  * effects declared in `Row`.
+ *
+ * NOTE:
+ * - A computation cannot be run twice.
+ * - Functions that take computations usually "consume" them, i.e. a computation cannot be passed to
+ *   those functions twice.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Effectful<Row extends EffectKey, T> = Generator<Effect<Row, any>, T, any>;
@@ -142,6 +147,7 @@ export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
  * @param onReturn A function that handles the value returned by the computation.
  * @param onThrow A function that handles the error thrown by the computation.
  * @param handlers A set of effect handlers to handle effects performed by the computation.
+ * NOTE: handlers should not throw; instead they should call the thrid argument to properly abort the computation.
  * @returns The value returned by `onReturn` or `onThrow`.
  */
 export function run<Row extends EffectKey, T, U>(
@@ -211,6 +217,7 @@ export function run<Row extends EffectKey, T, U>(
  * Handles a subset of effects performed by a computation.
  * @param comp An effectful computation.
  * @param handlers A set of effect handlers to handle effects performed by the computation.
+ * NOTE: handlers should not throw; instead they should call the thrid argument to properly abort the computation.
  * @returns A wrapped computation.
  */
 export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
@@ -284,7 +291,7 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
 /**
  * `Interpreter<Key, Row>` is the type of interpreters.
  * An interpreter takes an effect effects performed by a computation, handles it by (optionally) tralnslating to other
- * effects, and returns or throws.
+ * effects, and returns to resume or throws to abort.
  * It distributes over `Key`, i.e. `Interpreter<X | Y, Row> = Interpreter<X, Row> | Interpreter<Y, Row>`.
  */
 export type Interpreter<Key extends EffectKey, Row extends EffectKey> =
