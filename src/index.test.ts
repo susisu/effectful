@@ -1,4 +1,4 @@
-import { vi, describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { Effectful } from "./index.js";
 import {
   perform,
@@ -214,41 +214,47 @@ describe("run", () => {
   });
 
   it("throws if resume is called after the computation is resumed or aborted", () => {
-    const onThrow = vi.fn((error: unknown): never => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    });
     expect(() =>
-      run(main(), (value) => value, onThrow, {
-        "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+      run(
+        main(),
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
         },
-        "test/string"(effect, resume) {
-          resume(effect.data.constraint(effect.data.value));
-          return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+        {
+          "test/number"(effect, resume) {
+            return resume(effect.data.constraint(effect.data.value));
+          },
+          "test/string"(effect, resume) {
+            resume(effect.data.constraint(effect.data.value));
+            return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+          },
         },
-      }),
+      ),
     ).toThrowError("cannot resume; already resumed or aborted");
-    expect(onThrow).toHaveBeenCalledWith(new Error("cannot resume; already resumed or aborted"));
   });
 
   it("throws if abort is called after the computation is resumed or aborted", () => {
-    const onThrow = vi.fn((error: unknown): never => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    });
     expect(() =>
-      run(main(), (value) => value, onThrow, {
-        "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+      run(
+        main(),
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
         },
-        "test/string"(effect, resume, abort) {
-          resume(effect.data.constraint(effect.data.value));
-          return abort(new Error("ERROR"));
+        {
+          "test/number"(effect, resume) {
+            return resume(effect.data.constraint(effect.data.value));
+          },
+          "test/string"(effect, resume, abort) {
+            resume(effect.data.constraint(effect.data.value));
+            return abort(new Error("ERROR"));
+          },
         },
-      }),
+      ),
     ).toThrowError("cannot abort; already resumed or aborted");
-    expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
   });
 });
 
@@ -323,21 +329,24 @@ describe("handle", () => {
         return yield* resume(effect.data.constraint(effect.data.value.toLowerCase()));
       },
     });
-    const onThrow = vi.fn((error: unknown): never => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    });
     expect(() =>
-      run(comp, (value) => value, onThrow, {
-        "test/identity"(effect, resume) {
-          return resume(effect.data);
+      run(
+        comp,
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
         },
-        "test/number"(_effect, _resume, abort) {
-          return abort(new Error("ERROR"));
+        {
+          "test/identity"(effect, resume) {
+            return resume(effect.data);
+          },
+          "test/number"(_effect, _resume, abort) {
+            return abort(new Error("ERROR"));
+          },
         },
-      }),
+      ),
     ).toThrowError("cannot resume; already resumed or aborted");
-    expect(onThrow).toHaveBeenCalledWith(new Error("cannot resume; already resumed or aborted"));
   });
 
   it("throws if abort is called after the computation is resumed or aborted", () => {
@@ -347,21 +356,24 @@ describe("handle", () => {
         return yield* abort(new Error("ERROR"));
       },
     });
-    const onThrow = vi.fn((error: unknown): never => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw error;
-    });
     expect(() =>
-      run(comp, (value) => value, onThrow, {
-        "test/identity"(effect, resume) {
-          return resume(effect.data);
+      run(
+        comp,
+        (value) => value,
+        (error) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw error;
         },
-        "test/number"(_effect, _resume, abort) {
-          return abort(new Error("ERROR"));
+        {
+          "test/identity"(effect, resume) {
+            return resume(effect.data);
+          },
+          "test/number"(_effect, _resume, abort) {
+            return abort(new Error("ERROR"));
+          },
         },
-      }),
+      ),
     ).toThrowError("cannot abort; already resumed or aborted");
-    expect(onThrow).toHaveBeenCalledWith(new Error("cannot abort; already resumed or aborted"));
   });
 });
 

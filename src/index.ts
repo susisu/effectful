@@ -183,29 +183,25 @@ export function run<Row extends EffectKey, T, U>(
     // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
     const handler = handlers[effect.key as Row];
     let done = false;
-    try {
-      return handler(
-        // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
-        effect as Effect<never, any>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (value: any) => {
-          if (done) {
-            throw new Error("cannot resume; already resumed or aborted");
-          }
-          done = true;
-          return onResume(value);
-        },
-        (error: unknown) => {
-          if (done) {
-            throw new Error("cannot abort; already resumed or aborted");
-          }
-          done = true;
-          return onAbort(error);
-        },
-      );
-    } catch (error) {
-      return onThrow(error);
-    }
+    return handler(
+      // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion, @typescript-eslint/no-explicit-any
+      effect as Effect<never, any>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (value: any) => {
+        if (done) {
+          throw new Error("cannot resume; already resumed or aborted");
+        }
+        done = true;
+        return onResume(value);
+      },
+      (error: unknown) => {
+        if (done) {
+          throw new Error("cannot abort; already resumed or aborted");
+        }
+        done = true;
+        return onAbort(error);
+      },
+    );
   }
 
   return onResume();
