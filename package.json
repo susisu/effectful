@@ -6,6 +6,7 @@
   "author": "Susisu <susisu2413@yahoo.co.jp>",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "files": [
     "lib",
     "src",
