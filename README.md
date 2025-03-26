@@ -89,8 +89,8 @@ function* main(): Eff<void, "read" | "print"> {
 Write interpreters to translate effects to real-world ones.
 
 ``` ts
-import type { Interpreter } from "../src/index.js";
-import { waitFor } from "../src/index.js";
+import type { Interpreter } from "@susisu/effectful";
+import { waitFor } from "@susisu/effectful";
 import { readFile } from "fs/promises";
 
 // Translates `read` effect to `async` effect.
@@ -113,7 +113,7 @@ const interpretPrint: Interpreter<"print", never> = function* (effect) {
 Run our `main` computation with interpreters.
 
 ``` ts
-import { interpret, runAsync } from "../src/index.js";
+import { interpret, runAsync } from "@susisu/effectful";
 
 runAsync(
   interpret<"read" | "print", "async", void>(main(), {
