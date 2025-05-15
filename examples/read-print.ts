@@ -80,7 +80,7 @@ const interpretRead: Interpreter<"read", "async"> = function* (effect) {
 };
 
 // Interprets `print` effect as output to the console.
-// eslint-disable-next-line func-style, require-yield
+// eslint-disable-next-line func-style
 const interpretPrint: Interpreter<"print", never> = function* (effect) {
   // eslint-disable-next-line no-console
   console.log(effect.data.message);
