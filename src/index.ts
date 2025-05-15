@@ -78,7 +78,6 @@ export function* map<Row extends EffectKey, T, U>(
  * @param value A value to return.
  * @returns A pure computation.
  */
-// eslint-disable-next-line require-yield
 export function* pure<T>(value: T): Effectful<never, T> {
   return value;
 }
@@ -88,7 +87,6 @@ export function* pure<T>(value: T): Effectful<never, T> {
  * @param error An error to throw.
  * @returns A computation.
  */
-// eslint-disable-next-line require-yield
 export function* abort(error: unknown): Effectful<never, never> {
   // eslint-disable-next-line @typescript-eslint/only-throw-error
   throw error;
@@ -395,13 +393,16 @@ export function waitFor<T>(promise: Promise<T>): Effectful<"async", Awaited<T>> 
  * @param comp A computation to run.
  * @returns The value returned by the computation.
  */
+// eslint-disable-next-line @typescript-eslint/promise-function-async
 export function runAsync<T>(comp: Effectful<"async", T>): Promise<Awaited<T>> {
   return run(
     comp,
+    // eslint-disable-next-line @typescript-eslint/promise-function-async
     (value) => Promise.resolve(value),
-    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, @typescript-eslint/prefer-promise-reject-errors
     (error) => Promise.reject(error),
     {
+      // eslint-disable-next-line @typescript-eslint/promise-function-async
       async(effect, resume, abort) {
         return effect.data.then(resume, abort);
       },

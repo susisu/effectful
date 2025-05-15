@@ -417,7 +417,6 @@ describe("interpret", () => {
 
   it("allow interpreters to abort the computation", () => {
     const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
-      // eslint-disable-next-line require-yield
       *"test/string"() {
         throw new Error("ERROR FOO");
       },
@@ -445,7 +444,6 @@ describe("interpret", () => {
 
 describe("runPure", () => {
   it("runs a pure computation", () => {
-    // eslint-disable-next-line require-yield
     function* main(): Effectful<never, number> {
       return 42;
     }
