@@ -1,3 +1,7 @@
+## 0.7.1 (2025-05-19)
+
+- Improve type inference for `handle` and `interpret`
+
 ## 0.7.0 (2025-02-16)
 
 - Simplify the `interpret` function
