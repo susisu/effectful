@@ -219,7 +219,7 @@ export function run<Row extends EffectKey, T, U>(
  * @returns A wrapped computation.
  */
 export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
-  comp: Effectful<RowA | RowB, T>,
+  comp: Effectful<RowA | NoInfer<RowB>, T>,
   handlers: HandlerRecord<RowA, Effectful<RowB, T>>,
 ): Effectful<RowB, T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -309,7 +309,7 @@ export type InterpreterRecord<RowA extends EffectKey, RowB extends EffectKey> = 
  * @returns A wrapped computation.
  */
 export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
-  comp: Effectful<RowA | RowB, T>,
+  comp: Effectful<RowA | NoInfer<RowB>, T>,
   interpreters: InterpreterRecord<RowA, RowB>,
 ): Effectful<RowB, T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

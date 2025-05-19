@@ -94,7 +94,7 @@ const interpretPrint: Interpreter<"print", never> = function* (effect) {
 import { interpret, runAsync } from "../src/index.js";
 
 runAsync(
-  interpret<"read" | "print", "async", void>(main(), {
+  interpret(main(), {
     read: interpretRead,
     print: interpretPrint,
   }),
