@@ -116,7 +116,7 @@ Run our `main` computation with interpreters.
 import { interpret, runAsync } from "@susisu/effectful";
 
 runAsync(
-  interpret<"read" | "print", "async", void>(main(), {
+  interpret(main(), {
     read: interpretRead,
     print: interpretPrint,
   }),
