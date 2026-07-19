@@ -75,7 +75,7 @@ describe("pure", () => {
 describe("abort", () => {
   it("creates a computation that throws the given error", () => {
     const comp = abort(new Error("ERROR"));
-    expect(() => runPure(comp)).toThrowError("ERROR");
+    expect(() => runPure(comp)).toThrow(new Error("ERROR"));
   });
 });
 
@@ -90,7 +90,7 @@ describe("bind", () => {
   it("throws if the first computation throws and `onThrows` is not given", () => {
     const comp = abort(new Error("ERROR"));
     const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
-    expect(() => runPure(bind(comp, func))).toThrowError("ERROR");
+    expect(() => runPure(bind(comp, func))).toThrow(new Error("ERROR"));
   });
 
   it("calls `onReturn` branch if the first computation returns", () => {
@@ -167,7 +167,7 @@ describe("run", () => {
           },
         },
       ),
-    ).toThrowError("ERROR");
+    ).toThrow(new Error("ERROR"));
   });
 
   it("allows onReturn to modify the value returned by the computation", () => {
@@ -232,7 +232,7 @@ describe("run", () => {
           },
         },
       ),
-    ).toThrowError("cannot resume; already resumed or aborted");
+    ).toThrow(new Error("cannot resume; already resumed or aborted"));
   });
 
   it("throws if abort is called after the computation is resumed or aborted", () => {
@@ -254,7 +254,7 @@ describe("run", () => {
           },
         },
       ),
-    ).toThrowError("cannot abort; already resumed or aborted");
+    ).toThrow(new Error("cannot abort; already resumed or aborted"));
   });
 });
 
@@ -319,7 +319,7 @@ describe("handle", () => {
           },
         },
       ),
-    ).toThrowError("ERROR FOO");
+    ).toThrow(new Error("ERROR FOO"));
   });
 
   it("throws if resume is called after the computation is resumed or aborted", () => {
@@ -346,7 +346,7 @@ describe("handle", () => {
           },
         },
       ),
-    ).toThrowError("cannot resume; already resumed or aborted");
+    ).toThrow(new Error("cannot resume; already resumed or aborted"));
   });
 
   it("throws if abort is called after the computation is resumed or aborted", () => {
@@ -373,7 +373,7 @@ describe("handle", () => {
           },
         },
       ),
-    ).toThrowError("cannot abort; already resumed or aborted");
+    ).toThrow(new Error("cannot abort; already resumed or aborted"));
   });
 });
 
@@ -438,7 +438,7 @@ describe("interpret", () => {
           },
         },
       ),
-    ).toThrowError("ERROR FOO");
+    ).toThrow(new Error("ERROR FOO"));
   });
 });
 
@@ -477,6 +477,6 @@ describe("runAsync", () => {
       return x + y;
     }
     const res = runAsync(main());
-    await expect(res).rejects.toThrowError("ERROR");
+    await expect(res).rejects.toThrow(new Error("ERROR"));
   });
 });
