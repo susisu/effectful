@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Effectful } from "./index.js";
+import type { Eff } from "./index.js";
 import {
   perform,
   map,
@@ -28,14 +28,14 @@ declare module "./index.js" {
   }
 }
 
-function identity<T>(value: T): Effectful<T, "test/identity"> {
+function identity<T>(value: T): Eff<T, "test/identity"> {
   return perform({
     key: "test/identity",
     data: value,
   });
 }
 
-function number(value: number): Effectful<number, "test/number"> {
+function number(value: number): Eff<number, "test/number"> {
   return perform({
     key: "test/number",
     data: {
@@ -45,7 +45,7 @@ function number(value: number): Effectful<number, "test/number"> {
   });
 }
 
-function string(value: string): Effectful<string, "test/string"> {
+function string(value: string): Eff<string, "test/string"> {
   return perform({
     key: "test/string",
     data: {
@@ -82,21 +82,21 @@ describe("abort", () => {
 describe("bind", () => {
   it("composes two computations sequentially", () => {
     const comp = pure(6);
-    const func = (x: number): Effectful<string> => pure("A".repeat(x));
+    const func = (x: number): Eff<string> => pure("A".repeat(x));
     const res = runSync(bind(comp, func));
     expect(res).toBe("AAAAAA");
   });
 
   it("throws if the first computation throws and `onThrows` is not given", () => {
     const comp = abort(new Error("ERROR"));
-    const func = (x: number): Effectful<string> => pure("A".repeat(x));
+    const func = (x: number): Eff<string> => pure("A".repeat(x));
     expect(() => runSync(bind(comp, func))).toThrow(new Error("ERROR"));
   });
 
   it("calls `onReturn` branch if the first computation returns", () => {
     const comp = pure(6);
-    const onReturn = (x: number): Effectful<string> => pure("A".repeat(x));
-    const onThrow = (error: unknown): Effectful<string> => {
+    const onReturn = (x: number): Eff<string> => pure("A".repeat(x));
+    const onThrow = (error: unknown): Eff<string> => {
       if (error instanceof Error) {
         return pure(error.message);
       } else {
@@ -109,8 +109,8 @@ describe("bind", () => {
 
   it("calls `onThrow` branch if the first computation throws", () => {
     const comp = abort(new Error("ERROR"));
-    const onReturn = (x: number): Effectful<string> => pure("A".repeat(x));
-    const onThrow = (error: unknown): Effectful<string> => {
+    const onReturn = (x: number): Eff<string> => pure("A".repeat(x));
+    const onThrow = (error: unknown): Eff<string> => {
       if (error instanceof Error) {
         return pure(error.message);
       } else {
@@ -123,7 +123,7 @@ describe("bind", () => {
 });
 
 describe("run", () => {
-  function* main(): Effectful<string, "test/number" | "test/string"> {
+  function* main(): Eff<string, "test/number" | "test/string"> {
     const x = yield* number(3);
     const y = yield* string("A");
     return y.repeat(x);
@@ -259,7 +259,7 @@ describe("run", () => {
 });
 
 describe("handle", () => {
-  function* main(): Effectful<string, "test/number" | "test/string"> {
+  function* main(): Eff<string, "test/number" | "test/string"> {
     let x;
     try {
       x = yield* number(3);
@@ -378,7 +378,7 @@ describe("handle", () => {
 });
 
 describe("interpret", () => {
-  function* main(): Effectful<string, "test/number" | "test/string"> {
+  function* main(): Eff<string, "test/number" | "test/string"> {
     let x;
     try {
       x = yield* number(3);
@@ -444,7 +444,7 @@ describe("interpret", () => {
 
 describe("runSync", () => {
   it("runs a synchronous computation", () => {
-    function* main(): Effectful<number> {
+    function* main(): Eff<number> {
       return 42;
     }
 
@@ -455,7 +455,7 @@ describe("runSync", () => {
 
 describe("runAsync", () => {
   it("runs an asynchronous computation", async () => {
-    function* main(): Effectful<number, "async"> {
+    function* main(): Eff<number, "async"> {
       const x = yield* waitFor(Promise.resolve(42));
       let y;
       try {
@@ -471,7 +471,7 @@ describe("runAsync", () => {
   });
 
   it("rejects if a promise is rejected and not handled", async () => {
-    function* main(): Effectful<number, "async"> {
+    function* main(): Eff<number, "async"> {
       const x = yield* waitFor(Promise.resolve(42));
       const y = yield* waitFor(Promise.reject<number>(new Error("ERROR")));
       return x + y;
