@@ -34,7 +34,12 @@ declare module "@susisu/effectful" {
 }
 ```
 
-Here the `constraint` field constrains the type parameter `T` of the registry, which represents the type returned when the effect is performed. For example, `constraint: (x: string) => T` declares that performing the `read` effect returns a `string`, by providing a way to convert the actual result (a `string`) into `T`. This is a technique for encoding GADTs (generalized algebraic data types) in TypeScript; see [this article](https://susisu.hatenablog.com/entry/2020/05/03/020854) (in Japanese) for more details.
+<details>
+<summary>How does <code>constraint</code> work?</summary>
+
+The `constraint` field constrains the type parameter `T` of the registry, which represents the type returned when the effect is performed. For example, `constraint: (x: string) => T` declares that performing the `read` effect returns a `string`, by providing a way to convert the actual result (a `string`) into `T`. This is a technique for encoding GADTs (generalized algebraic data types) in TypeScript; see [this article](https://susisu.hatenablog.com/entry/2020/05/03/020854) (in Japanese) for more details.
+
+</details>
 
 ### 2. Define smart constructors for effects
 
@@ -85,7 +90,8 @@ function* main(): Eff<void, "read" | "print"> {
 }
 ```
 
-NOTE: A computation is a generator object, and hence is stateful and single-use. Once you run a computation (or pass it to a function that consumes it, such as `interpret`), you cannot use it again.
+> [!NOTE]
+> A computation is a generator object, and hence is stateful and single-use. Once you run a computation (or pass it to a function that consumes it, such as `interpret`), you cannot use it again.
 
 
 ### 4. Write interpreters
