@@ -54,7 +54,7 @@ export type Eff<T, Row extends EffectKey = never> = Effectful<Row, T>;
  * @param effect  An effect to perform.
  * @returns A computation that performs the given effect.
  */
-export function* perform<Row extends EffectKey, T>(effect: Effect<Row, T>): Effectful<Row, T> {
+export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Effectful<Key, T> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return yield effect;
 }
