@@ -33,7 +33,7 @@ export type Effect<Key extends EffectKey, T> =
   : never;
 
 /**
- * `Effectful<Row, T>` is the type of effectful computations that return `T` and may perform
+ * `Effectful<T, Row>` is the type of effectful computations that return `T` and may perform
  * effects declared in `Row`.
  *
  * NOTE:
@@ -42,19 +42,19 @@ export type Effect<Key extends EffectKey, T> =
  *   those functions twice.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Effectful<Row extends EffectKey, T> = Generator<Effect<Row, any>, T, any>;
+export type Effectful<T, Row extends EffectKey = never> = Generator<Effect<Row, any>, T, any>;
 
 /**
- * `Eff<T, Row>` is an alias for `Effectful<Row, T>`.
+ * `Eff<T, Row>` is an alias for `Effectful<T, Row>`.
  */
-export type Eff<T, Row extends EffectKey = never> = Effectful<Row, T>;
+export type Eff<T, Row extends EffectKey = never> = Effectful<T, Row>;
 
 /**
  * Creates a computation that performs a signle effect.
  * @param effect  An effect to perform.
  * @returns A computation that performs the given effect.
  */
-export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Effectful<Key, T> {
+export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Effectful<T, Key> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return yield effect;
 }
@@ -66,9 +66,9 @@ export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Effe
  * @returns A computation that returns the value transformed by the function.
  */
 export function* map<Row extends EffectKey, T, U>(
-  comp: Effectful<Row, T>,
+  comp: Effectful<T, Row>,
   func: (value: T) => U,
-): Effectful<Row, U> {
+): Effectful<U, Row> {
   const value = yield* comp;
   return func(value);
 }
@@ -78,7 +78,7 @@ export function* map<Row extends EffectKey, T, U>(
  * @param value A value to return.
  * @returns A pure computation.
  */
-export function* pure<T>(value: T): Effectful<never, T> {
+export function* pure<T>(value: T): Effectful<T> {
   return value;
 }
 
@@ -87,7 +87,7 @@ export function* pure<T>(value: T): Effectful<never, T> {
  * @param error An error to throw.
  * @returns A computation.
  */
-export function* abort(error: unknown): Effectful<never, never> {
+export function* abort(error: unknown): Effectful<never> {
   // eslint-disable-next-line @typescript-eslint/only-throw-error
   throw error;
 }
@@ -103,10 +103,10 @@ export function* abort(error: unknown): Effectful<never, never> {
  * @returns A composed computation.
  */
 export function* bind<Row extends EffectKey, T, U>(
-  comp: Effectful<Row, T>,
-  onReturn: (value: T) => Effectful<Row, U>,
-  onThrow?: (error: unknown) => Effectful<Row, U>,
-): Effectful<Row, U> {
+  comp: Effectful<T, Row>,
+  onReturn: (value: T) => Effectful<U, Row>,
+  onThrow?: (error: unknown) => Effectful<U, Row>,
+): Effectful<U, Row> {
   let value;
   if (onThrow) {
     try {
@@ -149,7 +149,7 @@ export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
  * @returns The value returned by `onReturn` or `onThrow`.
  */
 export function run<Row extends EffectKey, T, U>(
-  comp: Effectful<Row, T>,
+  comp: Effectful<T, Row>,
   onReturn: (value: T) => U,
   onThrow: (error: unknown) => U,
   handlers: HandlerRecord<Row, U>,
@@ -219,11 +219,11 @@ export function run<Row extends EffectKey, T, U>(
  * @returns A wrapped computation.
  */
 export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
-  comp: Effectful<RowA | NoInfer<RowB>, T>,
-  handlers: HandlerRecord<RowA, Effectful<RowB, T>>,
-): Effectful<RowB, T> {
+  comp: Effectful<T, RowA | NoInfer<RowB>>,
+  handlers: HandlerRecord<RowA, Effectful<T, RowB>>,
+): Effectful<T, RowB> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function onResume(value?: any): Effectful<RowB, T> {
+  function onResume(value?: any): Effectful<T, RowB> {
     let res;
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -237,7 +237,7 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
     return onYield(res.value);
   }
 
-  function onAbort(error: unknown): Effectful<RowB, T> {
+  function onAbort(error: unknown): Effectful<T, RowB> {
     let res;
     try {
       res = comp.throw(error);
@@ -251,7 +251,7 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function onYield(effect: Effect<RowA | RowB, any>): Effectful<RowB, T> {
+  function onYield(effect: Effect<RowA | RowB, any>): Effectful<T, RowB> {
     // NOTE: `eff.key in handlers` does not always imply `eff.key: RowA` because of subtyping,
     // but we assume so here for convenience.
     // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
@@ -293,7 +293,7 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
  * It distributes over `Key`, i.e. `Interpreter<X | Y, Row> = Interpreter<X, Row> | Interpreter<Y, Row>`.
  */
 export type Interpreter<Key extends EffectKey, Row extends EffectKey> =
-  Key extends unknown ? <S>(effect: Effect<Key, S>) => Effectful<Row, S> : never;
+  Key extends unknown ? <S>(effect: Effect<Key, S>) => Effectful<S, Row> : never;
 
 /**
  * InterpreterRecord<Row, T> is the type of sets of interpreters.
@@ -309,11 +309,11 @@ export type InterpreterRecord<RowA extends EffectKey, RowB extends EffectKey> = 
  * @returns A wrapped computation.
  */
 export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
-  comp: Effectful<RowA | NoInfer<RowB>, T>,
+  comp: Effectful<T, RowA | NoInfer<RowB>>,
   interpreters: InterpreterRecord<RowA, RowB>,
-): Effectful<RowB, T> {
+): Effectful<T, RowB> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function onResume(value?: any): Effectful<RowB, T> {
+  function onResume(value?: any): Effectful<T, RowB> {
     let res;
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -327,7 +327,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
     return onYield(res.value);
   }
 
-  function onAbort(error: unknown): Effectful<RowB, T> {
+  function onAbort(error: unknown): Effectful<T, RowB> {
     let res;
     try {
       res = comp.throw(error);
@@ -341,7 +341,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function onYield(effect: Effect<RowA | RowB, any>): Effectful<RowB, T> {
+  function onYield(effect: Effect<RowA | RowB, any>): Effectful<T, RowB> {
     // NOTE: `eff.key in interpreters` does not always imply `eff.key: RowA` because of subtyping,
     // but we assume so here for convenience.
     // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
@@ -363,7 +363,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
  * @param comp A computation to run.
  * @returns The value returned by the computation.
  */
-export function runSync<T>(comp: Effectful<never, T>): T {
+export function runSync<T>(comp: Effectful<T>): T {
   return run(
     comp,
     (value) => value,
@@ -380,7 +380,7 @@ export function runSync<T>(comp: Effectful<never, T>): T {
  * @param promise A promise to wait for.
  * @returns A computation that performs an async effect.
  */
-export function waitFor<T>(promise: Promise<T>): Effectful<"async", Awaited<T>> {
+export function waitFor<T>(promise: Promise<T>): Effectful<Awaited<T>, "async"> {
   return perform({
     key: "async",
     // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
@@ -394,7 +394,7 @@ export function waitFor<T>(promise: Promise<T>): Effectful<"async", Awaited<T>> 
  * @returns The value returned by the computation.
  */
 // eslint-disable-next-line @typescript-eslint/promise-function-async
-export function runAsync<T>(comp: Effectful<"async", T>): Promise<Awaited<T>> {
+export function runAsync<T>(comp: Effectful<T, "async">): Promise<Awaited<T>> {
   return run(
     comp,
     // eslint-disable-next-line @typescript-eslint/promise-function-async
