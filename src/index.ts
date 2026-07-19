@@ -359,11 +359,11 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
 }
 
 /**
- * Runs a pure computation.
+ * Runs a synchronous computation that has no uninterpreted effects.
  * @param comp A computation to run.
  * @returns The value returned by the computation.
  */
-export function runPure<T>(comp: Effectful<never, T>): T {
+export function runSync<T>(comp: Effectful<never, T>): T {
   return run(
     comp,
     (value) => value,
@@ -389,7 +389,7 @@ export function waitFor<T>(promise: Promise<T>): Effectful<"async", Awaited<T>> 
 }
 
 /**
- * Runs an async computation.
+ * Runs an asynchronous computation that has no uninterpreted effects other than `async`.
  * @param comp A computation to run.
  * @returns The value returned by the computation.
  */

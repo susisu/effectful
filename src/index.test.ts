@@ -9,7 +9,7 @@ import {
   run,
   handle,
   interpret,
-  runPure,
+  runSync,
   waitFor,
   runAsync,
 } from "./index.js";
@@ -59,7 +59,7 @@ describe("map", () => {
   it("transforms the return value of a computation by a function", () => {
     const comp = pure(6);
     const func = (x: number): string => "A".repeat(x);
-    const res = runPure(map(comp, func));
+    const res = runSync(map(comp, func));
     expect(res).toBe("AAAAAA");
   });
 });
@@ -67,7 +67,7 @@ describe("map", () => {
 describe("pure", () => {
   it("creates a pure computation that returns the given value", () => {
     const comp = pure(42);
-    const res = runPure(comp);
+    const res = runSync(comp);
     expect(res).toBe(42);
   });
 });
@@ -75,7 +75,7 @@ describe("pure", () => {
 describe("abort", () => {
   it("creates a computation that throws the given error", () => {
     const comp = abort(new Error("ERROR"));
-    expect(() => runPure(comp)).toThrow(new Error("ERROR"));
+    expect(() => runSync(comp)).toThrow(new Error("ERROR"));
   });
 });
 
@@ -83,14 +83,14 @@ describe("bind", () => {
   it("composes two computations sequentially", () => {
     const comp = pure(6);
     const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
-    const res = runPure(bind(comp, func));
+    const res = runSync(bind(comp, func));
     expect(res).toBe("AAAAAA");
   });
 
   it("throws if the first computation throws and `onThrows` is not given", () => {
     const comp = abort(new Error("ERROR"));
     const func = (x: number): Effectful<never, string> => pure("A".repeat(x));
-    expect(() => runPure(bind(comp, func))).toThrow(new Error("ERROR"));
+    expect(() => runSync(bind(comp, func))).toThrow(new Error("ERROR"));
   });
 
   it("calls `onReturn` branch if the first computation returns", () => {
@@ -103,7 +103,7 @@ describe("bind", () => {
         return pure("");
       }
     };
-    const res = runPure(bind(comp, onReturn, onThrow));
+    const res = runSync(bind(comp, onReturn, onThrow));
     expect(res).toBe("AAAAAA");
   });
 
@@ -117,7 +117,7 @@ describe("bind", () => {
         return pure("");
       }
     };
-    const res = runPure(bind(comp, onReturn, onThrow));
+    const res = runSync(bind(comp, onReturn, onThrow));
     expect(res).toBe("ERROR");
   });
 });
@@ -442,19 +442,19 @@ describe("interpret", () => {
   });
 });
 
-describe("runPure", () => {
-  it("runs a pure computation", () => {
+describe("runSync", () => {
+  it("runs a synchronous computation", () => {
     function* main(): Effectful<never, number> {
       return 42;
     }
 
-    const res = runPure(main());
+    const res = runSync(main());
     expect(res).toBe(42);
   });
 });
 
 describe("runAsync", () => {
-  it("runs an async computation", async () => {
+  it("runs an asynchronous computation", async () => {
     function* main(): Effectful<"async", number> {
       const x = yield* waitFor(Promise.resolve(42));
       let y;

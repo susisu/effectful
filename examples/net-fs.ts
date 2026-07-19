@@ -1,5 +1,5 @@
 import type { Eff, Interpreter } from "../src/index.js";
-import { interpret, perform, runAsync, runPure, waitFor } from "../src/index.js";
+import { interpret, perform, runAsync, runSync, waitFor } from "../src/index.js";
 import * as fs from "node:fs/promises";
 
 declare module "../src/index.js" {
@@ -111,7 +111,7 @@ const mockFs: Interpreter<"fs", never> = function* (effect) {
   }
 };
 
-runPure(
+runSync(
   interpret(main(), {
     net: mockNet,
     fs: mockFs,
