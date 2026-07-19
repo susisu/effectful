@@ -8,6 +8,7 @@
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
     "lib": ["esnext"],
+    "types": ["node"],
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
