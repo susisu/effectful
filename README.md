@@ -34,11 +34,13 @@ declare module "@susisu/effectful" {
 }
 ```
 
+Here the `constraint` field constrains the type parameter `T` of the registry, which represents the type returned when the effect is performed. For example, `constraint: (x: string) => T` declares that performing the `read` effect returns a `string`, by providing a way to convert the actual result (a `string`) into `T`. This is a technique for encoding GADTs (generalized algebraic data types) in TypeScript; see [this article](https://susisu.hatenablog.com/entry/2020/05/03/020854) (in Japanese) for more details.
+
 ### 2. Define smart constructors for effects
 
 This is for later convenience.
 Here "smart constructors" are functions that construct atomic computations.
-`Eff<T, Row>` is the type of compuations that perform effects in `Row` (a union type of effect keys) and return `T`.
+`Eff<T, Row>` is the type of computations that return `T` and may perform effects in `Row` (a union of effect keys).
 
 ``` ts
 import type { Eff } from "@susisu/effectful";
@@ -83,25 +85,29 @@ function* main(): Eff<void, "read" | "print"> {
 }
 ```
 
+NOTE: A computation is a generator object, and hence is stateful and single-use. Once you run a computation (or pass it to a function that consumes it, such as `interpret`), you cannot use it again.
+
 
 ### 4. Write interpreters
 
-Write interpreters to translate effects to real-world ones.
+Write interpreters to translate effects into real-world ones.
+
+The `async` effect used below is the only effect that is registered by the library out of the box. It can be performed with `waitFor`, and handled by `runAsync`.
 
 ``` ts
 import type { Interpreter } from "@susisu/effectful";
 import { waitFor } from "@susisu/effectful";
 import { readFile } from "fs/promises";
 
-// Translates `read` effect to `async` effect.
+// Translates the `read` effect into the `async` effect.
 const interpretRead: Interpreter<"read", "async"> = function* (effect) {
   const content = yield* waitFor(readFile(effect.data.filename, "utf-8"));
-  // Here the type `effect` is `Effect<"read", S>`, so the return value must be of type `S`.
+  // Here the type of `effect` is `Effect<"read", S>`, so the return value must be of type `S`.
   // You can use `constraint: (x: string) => S` to convert `content: string` to `S`.
   return effect.data.constraint(content);
 };
 
-// Interprets `print` effect as output to the console.
+// Interprets the `print` effect as output to the console.
 const interpretPrint: Interpreter<"print", never> = function* (effect) {
   console.log(effect.data.message);
   return effect.data.constraint(undefined);
@@ -110,7 +116,7 @@ const interpretPrint: Interpreter<"print", never> = function* (effect) {
 
 ### 5. Run computations
 
-Run our `main` computation with interpreters.
+Run our `main` computation with the interpreters.
 
 ``` ts
 import { interpret, runAsync } from "@susisu/effectful";
