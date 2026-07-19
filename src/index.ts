@@ -1,21 +1,21 @@
 /**
  * `EffectRegistry<T>` is the global registry of effects.
- * Users can extend this interface (by declaration merging) to register custom effects.
- * Each key defines an effect, and the type associated to the key is the data type of the effect.
- * @param T The type returned when an effect is performed.
+ * Users can extend this interface (via declaration merging) to register custom effects.
+ * Each key defines an effect, and its associated type is the data type of the effect.
+ * @typeParam T The type returned when the effect is performed.
  */
 export interface EffectRegistry<out T> {
   async: Promise<T>;
 }
 
 /**
- * `EffectKey` is the union type containing all the keys in `EffectRegistry`,
+ * `EffectKey` is the union of all the effect keys registered in `EffectRegistry`,
  * i.e. the upper bound for effect rows.
  */
 export type EffectKey = keyof EffectRegistry<unknown>;
 
 /**
- * `EffectData<Key, T>` is the associated data type of effects.
+ * `EffectData<Key, T>` is the data type associated with each effect in `Key`.
  * It distributes over `Key`, i.e. `EffectData<X | Y, T> = EffectData<X, T> | EffectData<Y, T>`.
  */
 export type EffectData<Key extends EffectKey, T> = EffectRegistry<T>[Key];
@@ -34,19 +34,19 @@ export type Effect<Key extends EffectKey, T> =
 
 /**
  * `Eff<T, Row>` is the type of effectful computations that return `T` and may perform
- * effects declared in `Row`.
+ * effects in `Row`.
  *
  * NOTE:
  * - A computation cannot be run twice.
- * - Functions that take computations usually "consume" them, i.e. a computation cannot be passed to
- *   those functions twice.
+ * - Functions that take computations usually "consume" them, i.e. once a computation is passed
+ *   to such a function, it cannot be used again.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Eff<T, Row extends EffectKey = never> = Generator<Effect<Row, any>, T, any>;
 
 /**
- * Creates a computation that performs a signle effect.
- * @param effect  An effect to perform.
+ * Creates a computation that performs a single effect.
+ * @param effect The effect to perform.
  * @returns A computation that performs the given effect.
  */
 export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Eff<T, Key> {
@@ -55,10 +55,10 @@ export function* perform<Key extends EffectKey, T>(effect: Effect<Key, T>): Eff<
 }
 
 /**
- * Transforms the return value of a computation by a function.
- * @param comp A computation.
- * @param func A function that transforms the return value of the computation.
- * @returns A computation that returns the value transformed by the function.
+ * Transforms the return value of a computation with a function.
+ * @param comp The computation to transform.
+ * @param func The function that transforms the return value of the computation.
+ * @returns A computation that returns the transformed value.
  */
 export function* map<Row extends EffectKey, T, U>(
   comp: Eff<T, Row>,
@@ -69,8 +69,8 @@ export function* map<Row extends EffectKey, T, U>(
 }
 
 /**
- * Creates a pure computation that does not perform any effect and returns the given value.
- * @param value A value to return.
+ * Creates a pure computation that does not perform any effects and returns the given value.
+ * @param value The value to return.
  * @returns A pure computation.
  */
 export function* pure<T>(value: T): Eff<T> {
@@ -78,9 +78,9 @@ export function* pure<T>(value: T): Eff<T> {
 }
 
 /**
- * Creates a computation that does not perform any effect and throws the given error.
- * @param error An error to throw.
- * @returns A computation.
+ * Creates a computation that does not perform any effects and throws the given error.
+ * @param error The error to throw.
+ * @returns A computation that throws the given error.
  */
 export function* abort(error: unknown): Eff<never> {
   // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -89,12 +89,12 @@ export function* abort(error: unknown): Eff<never> {
 
 /**
  * Composes (or chains) two computations sequentially, like `Promise.prototype.then`.
- * It calls `onReturn` if the first computation returns, and calls `onThrow` if throws.
- * @param comp A computation.
- * @param onReturn A function that takes the value returned by the first computation, and returns a
+ * It calls `onReturn` if the first computation returns, and `onThrow` if it throws.
+ * @param comp The first computation.
+ * @param onReturn The function that takes the value returned by the first computation and returns a
  * subsequent computation.
- * @param onThrow A function that takes the error thrown by the first computation, and returns a
- * subsequent computation.
+ * @param onThrow The function that takes the error thrown by the first computation and returns a
+ * subsequent computation. If omitted, the error is propagated as-is.
  * @returns A composed computation.
  */
 export function* bind<Row extends EffectKey, T, U>(
@@ -110,7 +110,7 @@ export function* bind<Row extends EffectKey, T, U>(
       return yield* onThrow(error);
     }
   } else {
-    // short-circuit of onThrow = abort
+    // behaves as if onThrow = abort, but skips the redundant catch-and-rethrow
     value = yield* comp;
   }
   return yield* onReturn(value);
@@ -118,8 +118,8 @@ export function* bind<Row extends EffectKey, T, U>(
 
 /**
  * `Handler<Key, T>` is the type of effect handlers.
- * An effect handler takes an effect performed by a computation, handles it, and determines whether to resume (with a
- * value) or abort (with an error) the computation.
+ * An effect handler takes an effect performed by a computation, handles it, and determines whether
+ * to resume the computation (with a value) or abort it (with an error).
  * It distributes over `Key`, i.e. `Handler<X | Y, T> = Handler<X, T> | Handler<Y, T>`.
  */
 export type Handler<Key extends EffectKey, T> =
@@ -128,7 +128,7 @@ export type Handler<Key extends EffectKey, T> =
   : never;
 
 /**
- * HandlerRecord<Row, T> is the type of sets of effect handlers.
+ * `HandlerRecord<Row, T>` is the type of sets of effect handlers, one for each effect in `Row`.
  */
 export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
   [Key in Row]: Handler<Key, T>;
@@ -136,11 +136,12 @@ export type HandlerRecord<Row extends EffectKey, T> = Readonly<{
 
 /**
  * Runs an effectful computation.
- * @param comp An effectful computation to run.
- * @param onReturn A function that handles the value returned by the computation.
- * @param onThrow A function that handles the error thrown by the computation.
- * @param handlers A set of effect handlers to handle effects performed by the computation.
- * NOTE: handlers should not throw; instead they should call the thrid argument to properly abort the computation.
+ * @param comp The effectful computation to run.
+ * @param onReturn The function that handles the value returned by the computation.
+ * @param onThrow The function that handles the error thrown by the computation.
+ * @param handlers The set of effect handlers for the effects performed by the computation.
+ * NOTE: handlers should not throw; instead, they should call their third argument `abort` to
+ * properly abort the computation.
  * @returns The value returned by `onReturn` or `onThrow`.
  */
 export function run<Row extends EffectKey, T, U>(
@@ -207,11 +208,13 @@ export function run<Row extends EffectKey, T, U>(
 }
 
 /**
- * Handles a subset of effects performed by a computation.
- * @param comp An effectful computation.
- * @param handlers A set of effect handlers to handle effects performed by the computation.
- * NOTE: handlers should not throw; instead they should call the thrid argument to properly abort the computation.
- * @returns A wrapped computation.
+ * Handles a subset of the effects performed by a computation.
+ * @param comp The effectful computation.
+ * @param handlers The set of effect handlers for a subset of the effects performed by the
+ * computation.
+ * NOTE: handlers should not throw; instead, they should call their third argument `abort` to
+ * properly abort the computation.
+ * @returns A wrapped computation that performs the remaining effects.
  */
 export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
   comp: Eff<T, RowA | NoInfer<RowB>>,
@@ -247,7 +250,7 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function onYield(effect: Effect<RowA | RowB, any>): Eff<T, RowB> {
-    // NOTE: `eff.key in handlers` does not always imply `eff.key: RowA` because of subtyping,
+    // NOTE: `effect.key in handlers` does not always imply `effect.key: RowA` because of subtyping,
     // but we assume so here for convenience.
     // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
     if (effect.key in handlers) {
@@ -283,25 +286,29 @@ export function* handle<RowA extends EffectKey, RowB extends EffectKey, T>(
 
 /**
  * `Interpreter<Key, Row>` is the type of interpreters.
- * An interpreter takes an effect effects performed by a computation, handles it by (optionally) tralnslating to other
- * effects, and returns to resume or throws to abort.
+ * An interpreter takes an effect performed by a computation, handles it by (optionally) translating
+ * it into other effects, and returns a value to resume the computation or throws an error to abort
+ * it.
  * It distributes over `Key`, i.e. `Interpreter<X | Y, Row> = Interpreter<X, Row> | Interpreter<Y, Row>`.
  */
 export type Interpreter<Key extends EffectKey, Row extends EffectKey> =
   Key extends unknown ? <S>(effect: Effect<Key, S>) => Eff<S, Row> : never;
 
 /**
- * InterpreterRecord<Row, T> is the type of sets of interpreters.
+ * `InterpreterRecord<RowA, RowB>` is the type of sets of interpreters, one for each effect in
+ * `RowA`.
  */
 export type InterpreterRecord<RowA extends EffectKey, RowB extends EffectKey> = Readonly<{
   [Key in RowA]: Interpreter<Key, RowB>;
 }>;
 
 /**
- * Interprets a subset of effects performed by a computation.
- * @param comp An effectful computation.
- * @param interpreters A set of interpreters to translate effects performed by the computation.
- * @returns A wrapped computation.
+ * Interprets a subset of the effects performed by a computation.
+ * @param comp The effectful computation.
+ * @param interpreters The set of interpreters for a subset of the effects performed by the
+ * computation.
+ * @returns A wrapped computation that performs the remaining effects and the effects introduced by
+ * the interpreters.
  */
 export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
   comp: Eff<T, RowA | NoInfer<RowB>>,
@@ -337,8 +344,8 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function onYield(effect: Effect<RowA | RowB, any>): Eff<T, RowB> {
-    // NOTE: `eff.key in interpreters` does not always imply `eff.key: RowA` because of subtyping,
-    // but we assume so here for convenience.
+    // NOTE: `effect.key in interpreters` does not always imply `effect.key: RowA` because of
+    // subtyping, but we assume so here for convenience.
     // eslint-disable-next-line @susisu/safe-typescript/no-unsafe-object-property-check
     if (effect.key in interpreters) {
       // eslint-disable-next-line @susisu/safe-typescript/no-type-assertion
@@ -355,7 +362,7 @@ export function* interpret<RowA extends EffectKey, RowB extends EffectKey, T>(
 
 /**
  * Runs a synchronous computation that has no uninterpreted effects.
- * @param comp A computation to run.
+ * @param comp The computation to run.
  * @returns The value returned by the computation.
  */
 export function runSync<T>(comp: Eff<T>): T {
@@ -371,9 +378,9 @@ export function runSync<T>(comp: Eff<T>): T {
 }
 
 /**
- * Performs an async effect to wait for a promise.
- * @param promise A promise to wait for.
- * @returns A computation that performs an async effect.
+ * Performs an `async` effect to wait for a promise.
+ * @param promise The promise to wait for.
+ * @returns A computation that waits for the promise and returns its resolved value.
  */
 export function waitFor<T>(promise: Promise<T>): Eff<Awaited<T>, "async"> {
   return perform({
@@ -385,8 +392,8 @@ export function waitFor<T>(promise: Promise<T>): Eff<Awaited<T>, "async"> {
 
 /**
  * Runs an asynchronous computation that has no uninterpreted effects other than `async`.
- * @param comp A computation to run.
- * @returns The value returned by the computation.
+ * @param comp The computation to run.
+ * @returns A promise that resolves to the value returned by the computation.
  */
 // eslint-disable-next-line @typescript-eslint/promise-function-async
 export function runAsync<T>(comp: Eff<T, "async">): Promise<Awaited<T>> {
