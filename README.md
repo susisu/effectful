@@ -23,21 +23,21 @@ declare module "@susisu/effectful" {
     // Reads a file and returns its content as a string.
     read: {
       filename: string;
-      constraint: (x: string) => T; // constrains `T = string`
+      $ev: (x: string) => T; // evidence that `T = string`
     };
     // Prints a message and returns void.
     print: {
       message: string;
-      constraint: (x: void) => T; // constrains `T = void`
+      $ev: (x: void) => T; // evidence that `T = void`
     };
   }
 }
 ```
 
 <details>
-<summary>How does <code>constraint</code> work?</summary>
+<summary>How does <code>$ev</code> work?</summary>
 
-The `constraint` field constrains the type parameter `T` of the registry, which represents the type returned when the effect is performed. For example, `constraint: (x: string) => T` declares that performing the `read` effect returns a `string`, by providing a way to convert the actual result (a `string`) into `T`. This is a technique for encoding GADTs (generalized algebraic data types) in TypeScript; see [this article](https://susisu.hatenablog.com/entry/2020/05/03/020854) (in Japanese) for more details.
+The `$ev` field (short for _evidence_) serves as evidence of what type the effect returns: for example, `$ev: (x: string) => T` declares that performing the `read` effect returns a `string`, by providing a way to convert the actual result (a `string`) into the abstract type `T`. This is a technique for encoding GADTs (generalized algebraic data types) in TypeScript; see [this article](https://susisu.hatenablog.com/entry/2020/05/03/020854) (in Japanese) for more details.
 
 </details>
 
@@ -56,7 +56,7 @@ function read(filename: string): Eff<string, "read"> {
     key: "read",
     data: {
       filename,
-      constraint: (x) => x, // `constraint` should be an identity function
+      $ev: (x) => x, // `$ev` should be an identity function
     },
   });
 }
@@ -66,7 +66,7 @@ function print(message: string): Eff<void, "print"> {
     key: "print",
     data: {
       message,
-      constraint: (x) => x,
+      $ev: (x) => x,
     },
   });
 }
@@ -108,15 +108,14 @@ import { readFile } from "fs/promises";
 // Translates the `read` effect into the `async` effect.
 const interpretRead: Interpreter<"read", "async"> = function* (effect) {
   const content = yield* waitFor(readFile(effect.data.filename, "utf-8"));
-  // Here the type of `effect` is `Effect<"read", S>`, so the return value must be of type `S`.
-  // You can use `constraint: (x: string) => S` to convert `content: string` to `S`.
-  return effect.data.constraint(content);
+  // Use `$ev` to convert the actual result into the expected type.
+  return effect.data.$ev(content);
 };
 
 // Interprets the `print` effect as output to the console.
 const interpretPrint: Interpreter<"print", never> = function* (effect) {
   console.log(effect.data.message);
-  return effect.data.constraint(undefined);
+  return effect.data.$ev(undefined);
 };
 ```
 

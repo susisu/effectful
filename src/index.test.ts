@@ -19,11 +19,11 @@ declare module "./index.js" {
     "test/identity": T;
     "test/number": {
       value: number;
-      constraint: (x: number) => T;
+      $ev: (x: number) => T;
     };
     "test/string": {
       value: string;
-      constraint: (x: string) => T;
+      $ev: (x: string) => T;
     };
   }
 }
@@ -40,7 +40,7 @@ function number(value: number): Eff<number, "test/number"> {
     key: "test/number",
     data: {
       value,
-      constraint: (x) => x,
+      $ev: (x) => x,
     },
   });
 }
@@ -50,7 +50,7 @@ function string(value: string): Eff<string, "test/string"> {
     key: "test/string",
     data: {
       value,
-      constraint: (x) => x,
+      $ev: (x) => x,
     },
   });
 }
@@ -139,10 +139,10 @@ describe("run", () => {
       },
       {
         "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value * 2));
+          return resume(effect.data.$ev(effect.data.value * 2));
         },
         "test/string"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+          return resume(effect.data.$ev(effect.data.value.toLowerCase()));
         },
       },
     );
@@ -160,7 +160,7 @@ describe("run", () => {
         },
         {
           "test/number"(effect, resume) {
-            return resume(effect.data.constraint(effect.data.value));
+            return resume(effect.data.$ev(effect.data.value));
           },
           "test/string"(_effect, _resume, abort) {
             return abort(new Error("ERROR"));
@@ -180,10 +180,10 @@ describe("run", () => {
       },
       {
         "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+          return resume(effect.data.$ev(effect.data.value));
         },
         "test/string"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+          return resume(effect.data.$ev(effect.data.value));
         },
       },
     );
@@ -203,7 +203,7 @@ describe("run", () => {
       },
       {
         "test/number"(effect, resume) {
-          return resume(effect.data.constraint(effect.data.value));
+          return resume(effect.data.$ev(effect.data.value));
         },
         "test/string"(_effect, _resume, abort) {
           return abort(new Error("ERROR"));
@@ -224,11 +224,11 @@ describe("run", () => {
         },
         {
           "test/number"(effect, resume) {
-            return resume(effect.data.constraint(effect.data.value));
+            return resume(effect.data.$ev(effect.data.value));
           },
           "test/string"(effect, resume) {
-            resume(effect.data.constraint(effect.data.value));
-            return resume(effect.data.constraint(effect.data.value.toLowerCase()));
+            resume(effect.data.$ev(effect.data.value));
+            return resume(effect.data.$ev(effect.data.value.toLowerCase()));
           },
         },
       ),
@@ -246,10 +246,10 @@ describe("run", () => {
         },
         {
           "test/number"(effect, resume) {
-            return resume(effect.data.constraint(effect.data.value));
+            return resume(effect.data.$ev(effect.data.value));
           },
           "test/string"(effect, resume, abort) {
-            resume(effect.data.constraint(effect.data.value));
+            resume(effect.data.$ev(effect.data.value));
             return abort(new Error("ERROR"));
           },
         },
@@ -274,7 +274,7 @@ describe("handle", () => {
     const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume) {
         const value = yield* identity(effect.data.value);
-        return yield* resume(effect.data.constraint(value));
+        return yield* resume(effect.data.$ev(value));
       },
     });
     const res = run(
@@ -325,8 +325,8 @@ describe("handle", () => {
   it("throws if resume is called after the computation is resumed or aborted", () => {
     const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume) {
-        yield* resume(effect.data.constraint(effect.data.value));
-        return yield* resume(effect.data.constraint(effect.data.value.toLowerCase()));
+        yield* resume(effect.data.$ev(effect.data.value));
+        return yield* resume(effect.data.$ev(effect.data.value.toLowerCase()));
       },
     });
     expect(() =>
@@ -352,7 +352,7 @@ describe("handle", () => {
   it("throws if abort is called after the computation is resumed or aborted", () => {
     const comp = handle<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect, resume, abort) {
-        yield* resume(effect.data.constraint(effect.data.value));
+        yield* resume(effect.data.$ev(effect.data.value));
         return yield* abort(new Error("ERROR"));
       },
     });
@@ -393,7 +393,7 @@ describe("interpret", () => {
     const comp = interpret<"test/string", "test/identity" | "test/number", string>(main(), {
       *"test/string"(effect) {
         const value = yield* identity(effect.data.value);
-        return effect.data.constraint(value);
+        return effect.data.$ev(value);
       },
     });
     const res = run(
