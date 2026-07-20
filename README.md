@@ -90,10 +90,6 @@ function* main(): Eff<void, "read" | "print"> {
 }
 ```
 
-> [!NOTE]
-> A computation is a generator object, and hence is stateful and single-use. Once you run a computation (or pass it to a function that consumes it, such as `interpret`), you cannot use it again.
-
-
 ### 4. Write interpreters
 
 Write interpreters to translate effects into real-world ones.
